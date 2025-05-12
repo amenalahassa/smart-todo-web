@@ -1,6 +1,16 @@
 <template>
   <div class="dashboard">
-    <h1>Dashboard</h1>
+    <!-- Navbar with user session -->
+    <div class="navbar">
+      <div class="navbar-brand">
+        <h1>Smart Todo App</h1>
+      </div>
+      <div class="navbar-user">
+        <span v-if="currentUser" class="user-email">{{ currentUser.email }}</span>
+        <button @click="logout" class="logout-button">Logout</button>
+      </div>
+    </div>
+
     <div class="dashboard-content">
       <div class="welcome-message">
         <h2>Welcome to your Todo Dashboard</h2>
@@ -12,8 +22,6 @@
         <p>No tasks yet. Start adding some!</p>
         <!-- Task list will be implemented in future iterations -->
       </div>
-
-      <button @click="logout" class="logout-button">Logout</button>
     </div>
   </div>
 </template>
@@ -23,6 +31,7 @@ import { useRouter } from 'vue-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useMessage } from 'naive-ui';
+import { currentUser } from '../store/auth';
 
 const router = useRouter();
 const message = useMessage();
@@ -80,5 +89,35 @@ const logout = async () => {
 
 .logout-button:hover {
   background-color: #d32f2f;
+}
+
+/* Navbar styles */
+.navbar {
+  background-color: #4CAF50;
+  color: white;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.navbar-brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-email {
+  font-weight: 500;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 5px 10px;
+  border-radius: 4px;
 }
 </style>
