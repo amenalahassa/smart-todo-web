@@ -37,20 +37,53 @@
             </div>
 
             <!-- Empty state -->
-            <div v-else-if="tasks.length === 0" class="empty-state">
-              <p>No tasks for today. Add a task to get started!</p>
+            <div v-else-if="pendingTasks.length === 0 && completedTasks.length === 0" class="empty-state">
+              <div class="empty-state-content">
+                <div class="empty-state-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64">
+                    <path fill="#4CAF50" d="M19,3H5C3.89,3,3,3.89,3,5v14c0,1.11,0.89,2,2,2h14c1.11,0,2-0.89,2-2V5C21,3.89,20.11,3,19,3z M10,17l-5-5l1.41-1.41 L10,14.17l7.59-7.59L19,8L10,17z"/>
+                  </svg>
+                </div>
+                <h3 class="empty-state-title">You're all caught up!</h3>
+                <p class="empty-state-message">Add a task to get started with your day.</p>
+                <button class="empty-state-button" @click="addNewTask">
+                  <span class="button-icon">+</span>
+                  Add a Task
+                </button>
+              </div>
             </div>
 
             <!-- Task list -->
-            <div v-else class="task-list">
-              <TaskItem 
-                v-for="task in tasks" 
-                :key="task.id" 
-                :task="task"
-                @edit="handleEditTask"
-                @delete="handleDeleteTask"
-                @archive="handleArchiveTask"
-              />
+            <div v-else>
+              <!-- Pending Tasks Section -->
+              <div v-if="pendingTasks.length > 0" class="task-section-header">
+                <h3>Pending Tasks</h3>
+              </div>
+              <div v-if="pendingTasks.length > 0" class="task-list">
+                <TaskItem 
+                  v-for="task in pendingTasks" 
+                  :key="task.id" 
+                  :task="task"
+                  @edit="handleEditTask"
+                  @delete="handleDeleteTask"
+                  @archive="handleArchiveTask"
+                />
+              </div>
+
+              <!-- Completed Tasks Section -->
+              <div v-if="completedTasks.length > 0" class="task-section-header">
+                <h3>Completed Tasks</h3>
+              </div>
+              <div v-if="completedTasks.length > 0" class="task-list completed-tasks">
+                <TaskItem 
+                  v-for="task in completedTasks" 
+                  :key="task.id" 
+                  :task="task"
+                  @edit="handleEditTask"
+                  @delete="handleDeleteTask"
+                  @archive="handleArchiveTask"
+                />
+              </div>
             </div>
           </div>
         </n-tab-pane>
@@ -89,6 +122,41 @@ import TaskItem from '../components/TaskItem.vue';
 const router = useRouter();
 const message = useMessage();
 const { tasks, loading, error, fetchTodayTasks } = useTasks();
+
+// Computed property to filter and sort pending tasks
+const pendingTasks = computed(() => {
+  return tasks.value
+    .filter(task => !task.completed)
+    .sort((a, b) => {
+      // Sort by due date (ascending)
+      if (a.dueDate && b.dueDate) {
+        const dateA = a.dueDate.seconds ? a.dueDate.seconds : a.dueDate;
+        const dateB = b.dueDate.seconds ? b.dueDate.seconds : b.dueDate;
+        return dateA - dateB;
+      }
+      // If only one task has a due date, it comes first
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      // If neither has a due date, sort by title
+      return a.title.localeCompare(b.title);
+    });
+});
+
+// Computed property to filter and sort completed tasks
+const completedTasks = computed(() => {
+  return tasks.value
+    .filter(task => task.completed)
+    .sort((a, b) => {
+      // Sort by completion date (descending) if available
+      if (a.completedAt && b.completedAt) {
+        const dateA = a.completedAt.seconds ? a.completedAt.seconds : a.completedAt;
+        const dateB = b.completedAt.seconds ? b.completedAt.seconds : b.completedAt;
+        return dateB - dateA; // Most recently completed first
+      }
+      // If completion date is not available, sort by title
+      return a.title.localeCompare(b.title);
+    });
+});
 
 // Format today's date
 const formattedDate = computed(() => {
@@ -178,9 +246,59 @@ const handleArchiveTask = (task) => {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 200px;
-  color: #999;
-  font-style: italic;
+  height: 300px;
+  color: #666;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 400px;
+}
+
+.empty-state-icon {
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.empty-state-title {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.empty-state-message {
+  margin: 0 0 25px 0;
+  font-size: 1rem;
+}
+
+.empty-state-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.empty-state-button:hover {
+  background-color: #45a049;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.button-icon {
+  font-size: 18px;
+  font-weight: bold;
+  margin-right: 8px;
 }
 
 .task-list {
@@ -188,6 +306,36 @@ const handleArchiveTask = (task) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.task-section-header {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid #eee;
+}
+
+.task-section-header h3 {
+  font-size: 1.2rem;
+  color: #333;
+  margin: 0;
+}
+
+/* Styling for the completed tasks section */
+.completed-tasks {
+  margin-top: 10px;
+  margin-bottom: 20px;
+  opacity: 0.8; /* Slightly faded appearance */
+}
+
+/* Add a visual separator between pending and completed tasks */
+.task-section-header:nth-of-type(2) {
+  margin-top: 30px;
+  border-bottom-color: #ddd;
+}
+
+.task-section-header:nth-of-type(2) h3 {
+  color: #666; /* Darker color for completed section header */
 }
 
 /* Loading state styles */

@@ -47,6 +47,18 @@ This application is configured as a Progressive Web App (PWA), which allows user
 - App manifest with name, icons, and theme color
 - Service worker for offline support and caching
 - Basic PWA assets (favicon and SVG icon)
+- Firestore offline persistence for accessing task data without internet connection
+
+### Offline Data Access
+
+The application uses Firebase Firestore's offline persistence capabilities to ensure that:
+
+- Tasks are cached locally in the browser's IndexedDB
+- Users can view and interact with their tasks even when offline
+- Changes made offline are automatically synchronized when connection is restored
+- The app provides a seamless experience regardless of network conditions
+
+The app uses Firebase Firestore's default caching mechanisms to provide offline support.
 
 ### Customizing PWA Icons
 
