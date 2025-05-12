@@ -1,47 +1,66 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+// App.vue is now a shell that uses router-view to display the current route component
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
+  <div class="app">
+    <header>
+      <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="50" height="50" />
+      <h1 class="app-title">Smart Todo App</h1>
+    </header>
 
-    <div class="wrapper">
-      <HelloWorld msg="hey, Junie dit it!" />
-    </div>
-  </header>
+    <main>
+      <!-- Router view will render the component matching the current route -->
+      <router-view />
+    </main>
 
-  <main>
-    <TheWelcome />
-  </main>
+    <footer>
+      <p>&copy; 2025 Smart Todo App</p>
+    </footer>
+  </div>
 </template>
 
-<style scoped>
+<style>
+/* Global styles */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f9f9f9;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 header {
-  line-height: 1.5;
+  background-color: #4CAF50;
+  color: white;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
 }
 
 .logo {
-  display: block;
-  margin: 0 auto 2rem;
+  margin-right: 1rem;
 }
 
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
+.app-title {
+  margin: 0;
+  font-size: 1.5rem;
+}
 
-  .logo {
-    margin: 0 2rem 0 0;
-  }
+main {
+  flex: 1;
+  padding: 1rem;
+}
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+footer {
+  background-color: #333;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+  margin-top: auto;
 }
 </style>
