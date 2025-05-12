@@ -13,9 +13,20 @@ The backend is developed using FastAPI and will evolve into an intelligent agent
 
 ## 🛠️ Setup
 
+### Install dependencies
 ```bash
 npm install
-````
+```
+
+### Configure Firebase Environment Variables
+1. Create a `.env` file in the root directory based on the `.env.example` template
+2. Fill in your Firebase credentials:
+   - `VITE_FIREBASE_API_KEY`: Your Firebase API key
+   - `VITE_FIREBASE_AUTH_DOMAIN`: Your Firebase auth domain
+   - `VITE_FIREBASE_PROJECT_ID`: Your Firebase project ID
+   - `VITE_FIREBASE_APP_ID`: Your Firebase app ID
+
+You can obtain these credentials from your Firebase console.
 
 ## 🧪 Development
 
