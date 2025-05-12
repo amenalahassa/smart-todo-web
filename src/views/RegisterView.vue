@@ -35,25 +35,45 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton } from 'naive-ui';
+import { NButton, useMessage } from 'naive-ui';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const name = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const router = useRouter();
+const message = useMessage();
 
 const register = async () => {
-  // This is a placeholder for actual registration logic
-  if (password.value !== confirmPassword.value) {
-    alert('Passwords do not match');
-    return;
+  try {
+    // Check if passwords match
+    if (password.value !== confirmPassword.value) {
+      message.error('Passwords do not match');
+      return;
+    }
+
+    // Use Firebase Auth to create a new user with email and password
+    const userCredential = await createUserWithEmailAndPassword(
+      auth, 
+      email.value, 
+      password.value
+    );
+
+    // Update the user profile with the name
+    await updateProfile(userCredential.user, {
+      displayName: name.value
+    });
+
+    // If successful, redirect to login page
+    message.success('Registration successful! Please log in.');
+    router.push('/login');
+  } catch (error) {
+    // Handle registration errors
+    console.error('Registration error:', error.message);
+    message.error('Registration failed: ' + error.message);
   }
-
-  console.log('Register with:', name.value, email.value, password.value);
-
-  // Simulate successful registration and redirect to login
-  router.push('/login');
 };
 </script>
 

@@ -27,20 +27,27 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton } from 'naive-ui';
+import { NButton, useMessage } from 'naive-ui';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const email = ref('');
 const password = ref('');
 const router = useRouter();
+const message = useMessage();
 
 const login = async () => {
-  // This is a placeholder for actual login logic
-  console.log('Login with:', email.value, password.value);
+  try {
+    // Use Firebase Auth to sign in with email and password
+    await signInWithEmailAndPassword(auth, email.value, password.value);
 
-  // Simulate successful login and redirect to dashboard
-  router.push('/dashboard');
-
-  console.log('Logging in with:', email.value, password.value);
+    // If successful, redirect to dashboard
+    router.push('/dashboard');
+  } catch (error) {
+    // Handle login errors
+    console.error('Login error:', error.message);
+    message.error('Login failed: ' + error.message);
+  }
 };
 </script>
 

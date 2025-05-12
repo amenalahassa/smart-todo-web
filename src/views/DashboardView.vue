@@ -20,15 +20,26 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import { useMessage } from 'naive-ui';
 
 const router = useRouter();
+const message = useMessage();
 
-const logout = () => {
-  // This is a placeholder for actual logout logic
-  console.log('Logging out...');
+const logout = async () => {
+  try {
+    // Use Firebase Auth to sign out
+    await signOut(auth);
 
-  // Redirect to login page after logout
-  router.push('/login');
+    message.success('Logged out successfully');
+
+    // Redirect to login page after logout
+    router.push('/login');
+  } catch (error) {
+    console.error('Logout error:', error.message);
+    message.error('Logout failed: ' + error.message);
+  }
 };
 </script>
 

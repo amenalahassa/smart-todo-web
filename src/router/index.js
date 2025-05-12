@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import DashboardView from '../views/DashboardView.vue';
+import { auth } from '../firebase';
 
 // Route configuration
 const routes = [
@@ -38,15 +39,12 @@ const router = createRouter({
   routes
 });
 
-// Route guard placeholder for authentication
+// Route guard for Firebase authentication
 router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-  
-  // This is a placeholder for actual authentication logic
-  // In a real application, you would check if the user is authenticated
-  const isAuthenticated = true; // Replace with actual auth check
-  
-  if (requiresAuth && !isAuthenticated) {
+  const currentUser = auth.currentUser;
+
+  if (requiresAuth && !currentUser) {
     // Redirect to login if not authenticated
     next('/login');
   } else {

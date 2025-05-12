@@ -1,20 +1,22 @@
 <script setup>
 // App.vue is now a shell that uses router-view to display the current route component
-import { NConfigProvider } from 'naive-ui'
+import { NConfigProvider, NMessageProvider } from 'naive-ui'
 </script>
 
 <template>
   <n-config-provider>
-    <div class="app">
-      <main>
-        <!-- Router view will render the component matching the current route -->
-        <router-view />
-      </main>
+    <n-message-provider>
+      <div class="app">
+        <main>
+          <!-- Router view will render the component matching the current route -->
+          <router-view />
+        </main>
 
-      <footer>
-        <p>&copy; 2025 Smart Todo App</p>
-      </footer>
-    </div>
+        <footer>
+          <p>&copy; 2025 Smart Todo App</p>
+        </footer>
+      </div>
+    </n-message-provider>
   </n-config-provider>
 </template>
 
