@@ -1,5 +1,5 @@
 // src/plugins/naive.ts
-import { create, NButton, NConfigProvider, NMessageProvider } from 'naive-ui'
+import { create, NButton, NConfigProvider, NMessageProvider, NTabs, NTabPane, NIcon, NBadge, NSpin } from 'naive-ui'
 
 // Create and export a function to install Naive UI
 export default function createNaiveUI() {
@@ -8,6 +8,11 @@ export default function createNaiveUI() {
       NButton,
       NConfigProvider,
       NMessageProvider,
+      NTabs,
+      NTabPane,
+      NIcon,
+      NBadge,
+      NSpin,
       // Add more components as needed
     ]
   })
