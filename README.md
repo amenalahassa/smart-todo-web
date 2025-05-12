@@ -1,29 +1,33 @@
-# smart-todo-web
+# 🗂️ To-Do App Frontend (Vue 3 + Firebase + PWA)
 
-This template should help get you started developing with Vue 3 in Vite.
+This is the frontend of the voice-enabled to-do app. It uses Vue 3, Firebase (Auth + Firestore), and is configured as a PWA for offline support.
 
-## Recommended IDE Setup
+## ✅ Phase 1 Features
+- Add and list tasks
+- Daily recurring task support
+- Voice input (Web Speech API)
+- Firebase authentication (email)
+- PWA installable on desktop/mobile
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## 🛠️ Setup
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
+```bash
 npm install
-```
+````
 
-### Compile and Hot-Reload for Development
+## 🧪 Development
 
-```sh
+```bash
 npm run dev
 ```
 
-### Compile and Minify for Production
+## 🏗️ Build for Production
 
-```sh
+```bash
 npm run build
 ```
+
+## 🧠 Phase 2 Preview
+
+* Connect to backend AI agent endpoint
+* Use Gemini + CrewAI to interpret voice commands and trigger task actions
