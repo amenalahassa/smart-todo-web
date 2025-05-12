@@ -40,6 +40,30 @@ npm run dev
 npm run build
 ```
 
+## 📱 PWA Support
+
+This application is configured as a Progressive Web App (PWA), which allows users to install it on their devices and use it offline. The PWA configuration includes:
+
+- App manifest with name, icons, and theme color
+- Service worker for offline support and caching
+- Basic PWA assets (favicon and SVG icon)
+
+### Customizing PWA Icons
+
+The application uses basic icons for PWA functionality. To enhance the user experience, you can add more optimized icons:
+
+1. See the guide in `public/README-PWA-ICONS.txt` for details on creating additional icons
+2. After adding new icons, update the PWA configuration in `vite.config.js`
+
+### Testing PWA Installation
+
+To test the PWA installation:
+
+1. Build the application: `npm run build`
+2. Serve the built files: `npm run preview`
+3. Open the application in a supported browser
+4. Look for the installation prompt in the address bar or browser menu
+
 ## 🧠 Phase 2 Preview
 
 * Connect to backend AI agent endpoint
