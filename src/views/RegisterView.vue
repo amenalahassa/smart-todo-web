@@ -64,7 +64,7 @@ const register = async () => {
   align-items: center;
   justify-content: center;
   min-height: 80vh;
-  padding: 20px;
+  padding: 0;
   color: #333; /* Ensure text is visible */
 }
 
@@ -84,8 +84,9 @@ const register = async () => {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 30px;
-  width: 100%;
-  max-width: 400px;
+  width: 90%;
+  max-width: 600px;
+  min-width: 300px;
 }
 
 .form-container h2 {

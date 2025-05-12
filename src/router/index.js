@@ -44,7 +44,7 @@ router.beforeEach((to, from, next) => {
   
   // This is a placeholder for actual authentication logic
   // In a real application, you would check if the user is authenticated
-  const isAuthenticated = false; // Replace with actual auth check
+  const isAuthenticated = true; // Replace with actual auth check
   
   if (requiresAuth && !isAuthenticated) {
     // Redirect to login if not authenticated

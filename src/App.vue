@@ -51,7 +51,7 @@ header {
 
 main {
   flex: 1;
-  padding: 1rem;
+  padding: 0;
 }
 
 footer {
