@@ -12,92 +12,106 @@
     </div>
 
     <div class="dashboard-content">
-      <!-- Header with today's date -->
+      <!-- Header with dynamic title based on active view -->
       <div class="header-section">
-        <h2>Today's Tasks</h2>
+        <h2>
+          <span v-if="activeView === 'today'">Today's Tasks</span>
+          <span v-else-if="activeView === 'upcoming'">Upcoming Tasks</span>
+          <span v-else-if="activeView === 'previous'">Previous Tasks</span>
+        </h2>
         <div class="date-display">{{ formattedDate }}</div>
       </div>
 
-      <!-- Tabs area for switching views -->
-      <n-tabs type="line" animated>
-        <n-tab-pane name="today" tab="Today">
-          <div class="task-section">
-            <!-- Loading state -->
-            <div v-if="loading" class="loading-state">
-              <n-spin size="large" />
-              <p>Loading tasks...</p>
-            </div>
+      <!-- Date Navigator - Sub-tabs for switching between time periods -->
+      <div class="date-navigator">
+        <n-tabs 
+          type="segment" 
+          :value="activeView" 
+          @update:value="handleViewChange" 
+          size="large"
+          animated
+          class="view-tabs"
+        >
+          <n-tab-pane name="today" tab="Today" />
+          <n-tab-pane name="upcoming" tab="Upcoming" />
+          <n-tab-pane name="previous" tab="Previous" />
+        </n-tabs>
+      </div>
 
-            <!-- Error state -->
-            <div v-else-if="error" class="error-state">
-              <p>Error loading tasks: {{ error }}</p>
-              <n-button @click="fetchTodayTasks" type="primary" size="small">
-                Retry
-              </n-button>
-            </div>
+      <!-- Task content area -->
+      <div class="task-section">
+        <!-- Loading state -->
+        <div v-if="loading" class="loading-state">
+          <n-spin size="large" />
+          <p>Loading tasks...</p>
+        </div>
 
-            <!-- Empty state -->
-            <div v-else-if="pendingTasks.length === 0 && completedTasks.length === 0" class="empty-state">
-              <div class="empty-state-content">
-                <div class="empty-state-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64">
-                    <path fill="#4CAF50" d="M19,3H5C3.89,3,3,3.89,3,5v14c0,1.11,0.89,2,2,2h14c1.11,0,2-0.89,2-2V5C21,3.89,20.11,3,19,3z M10,17l-5-5l1.41-1.41 L10,14.17l7.59-7.59L19,8L10,17z"/>
-                  </svg>
-                </div>
-                <h3 class="empty-state-title">You're all caught up!</h3>
-                <p class="empty-state-message">Add a task to get started with your day.</p>
-                <button class="empty-state-button" @click="addNewTask">
-                  <span class="button-icon">+</span>
-                  Add a Task
-                </button>
-              </div>
-            </div>
+        <!-- Error state -->
+        <div v-else-if="error" class="error-state">
+          <p>Error loading tasks: {{ error }}</p>
+          <n-button @click="() => fetchTasks(activeView)" type="primary" size="small">
+            Retry
+          </n-button>
+        </div>
 
-            <!-- Task list -->
-            <div v-else>
-              <!-- Pending Tasks Section -->
-              <div v-if="pendingTasks.length > 0" class="task-section-header">
-                <h3>Pending Tasks</h3>
-              </div>
-              <div v-if="pendingTasks.length > 0" class="task-list">
-                <TaskItem 
-                  v-for="task in pendingTasks" 
-                  :key="task.id" 
-                  :task="task"
-                  @edit="handleEditTask"
-                  @delete="handleDeleteTask"
-                  @archive="handleArchiveTask"
-                />
-              </div>
-
-              <!-- Completed Tasks Section -->
-              <div v-if="completedTasks.length > 0" class="task-section-header">
-                <h3>Completed Tasks</h3>
-              </div>
-              <div v-if="completedTasks.length > 0" class="task-list completed-tasks">
-                <TaskItem 
-                  v-for="task in completedTasks" 
-                  :key="task.id" 
-                  :task="task"
-                  @edit="handleEditTask"
-                  @delete="handleDeleteTask"
-                  @archive="handleArchiveTask"
-                />
-              </div>
+        <!-- Empty state -->
+        <div v-else-if="pendingTasks.length === 0 && completedTasks.length === 0" class="empty-state">
+          <div class="empty-state-content">
+            <div class="empty-state-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64">
+                <path fill="#4CAF50" d="M19,3H5C3.89,3,3,3.89,3,5v14c0,1.11,0.89,2,2,2h14c1.11,0,2-0.89,2-2V5C21,3.89,20.11,3,19,3z M10,17l-5-5l1.41-1.41 L10,14.17l7.59-7.59L19,8L10,17z"/>
+              </svg>
             </div>
+            <h3 class="empty-state-title">
+              <span v-if="activeView === 'today'">You're all caught up!</span>
+              <span v-else-if="activeView === 'upcoming'">No upcoming tasks</span>
+              <span v-else-if="activeView === 'previous'">No previous tasks</span>
+            </h3>
+            <p class="empty-state-message">
+              <span v-if="activeView === 'today'">Add a task to get started with your day.</span>
+              <span v-else-if="activeView === 'upcoming'">Plan ahead by adding tasks for the future.</span>
+              <span v-else-if="activeView === 'previous'">Past tasks will appear here.</span>
+            </p>
+            <button class="empty-state-button" @click="addNewTask">
+              <span class="button-icon">+</span>
+              Add a Task
+            </button>
           </div>
-        </n-tab-pane>
-        <n-tab-pane name="upcoming" tab="Upcoming">
-          <div class="task-section">
-            <p>Your upcoming tasks will appear here.</p>
+        </div>
+
+        <!-- Task list -->
+        <div v-else>
+          <!-- Pending Tasks Section -->
+          <div v-if="pendingTasks.length > 0" class="task-section-header">
+            <h3>Pending Tasks</h3>
           </div>
-        </n-tab-pane>
-        <n-tab-pane name="completed" tab="Completed">
-          <div class="task-section">
-            <p>Your completed tasks will appear here.</p>
+          <div v-if="pendingTasks.length > 0" class="task-list">
+            <TaskItem 
+              v-for="task in pendingTasks" 
+              :key="task.id" 
+              :task="task"
+              @edit="handleEditTask"
+              @delete="handleDeleteTask"
+              @archive="handleArchiveTask"
+            />
           </div>
-        </n-tab-pane>
-      </n-tabs>
+
+          <!-- Completed Tasks Section -->
+          <div v-if="completedTasks.length > 0" class="task-section-header">
+            <h3>Completed Tasks</h3>
+          </div>
+          <div v-if="completedTasks.length > 0" class="task-list completed-tasks">
+            <TaskItem 
+              v-for="task in completedTasks" 
+              :key="task.id" 
+              :task="task"
+              @edit="handleEditTask"
+              @delete="handleDeleteTask"
+              @archive="handleArchiveTask"
+            />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Floating Action Button (FAB) -->
@@ -121,7 +135,13 @@ import TaskItem from '../components/TaskItem.vue';
 
 const router = useRouter();
 const message = useMessage();
-const { tasks, loading, error, fetchTodayTasks } = useTasks();
+const { 
+  tasks, 
+  loading, 
+  error, 
+  activeView, 
+  fetchTasks,
+} = useTasks();
 
 // Computed property to filter and sort pending tasks
 const pendingTasks = computed(() => {
@@ -158,12 +178,32 @@ const completedTasks = computed(() => {
     });
 });
 
-// Format today's date
+// Format date based on active view
 const formattedDate = computed(() => {
   const today = new Date();
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+
+  if (activeView.value === 'today') {
+    return today.toLocaleDateString('en-US', options);
+  } else if (activeView.value === 'upcoming') {
+    // For upcoming, show the date range (e.g., "Next 7 days")
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    return `${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${nextWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  } else if (activeView.value === 'previous') {
+    // For previous, show the date range (e.g., "Last 30 days")
+    const lastMonth = new Date(today);
+    lastMonth.setDate(today.getDate() - 30);
+    return `${lastMonth.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  }
+
   return today.toLocaleDateString('en-US', options);
 });
+
+// Handle tab change
+const handleViewChange = (view) => {
+  fetchTasks(view);
+};
 
 const logout = async () => {
   try {
@@ -218,7 +258,7 @@ const handleArchiveTask = (task) => {
 
 /* Header section styles */
 .header-section {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .header-section h2 {
@@ -232,14 +272,58 @@ const handleArchiveTask = (task) => {
   font-size: 1rem;
 }
 
+/* Date Navigator styles */
+.date-navigator {
+  margin-bottom: 20px;
+}
+
+.view-tabs {
+  margin-bottom: 5px;
+}
+
+/* Make the tabs look more app-like */
+:deep(.n-tabs-nav) {
+  justify-content: center;
+  padding: 0 10px;
+}
+
+:deep(.n-tabs-nav-item) {
+  padding: 12px 24px;
+  font-weight: 500;
+  font-size: 1.05rem;
+}
+
+:deep(.n-tabs-tab-wrapper) {
+  padding: 0 5px;
+}
+
+:deep(.n-tabs-tab) {
+  transition: all 0.3s ease;
+}
+
+:deep(.n-tabs-tab:hover) {
+  color: #4CAF50;
+}
+
+:deep(.n-tabs-tab.n-tabs-tab--active) {
+  color: #4CAF50;
+  font-weight: 600;
+}
+
+:deep(.n-tabs-nav__line) {
+  background-color: #4CAF50;
+}
+
 /* Task section styles */
 .task-section {
   background-color: #fff;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 15px;
+  border-radius: 8px;
+  padding: 20px;
   margin-bottom: 20px;
   min-height: 200px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
 .empty-state {
@@ -305,13 +389,13 @@ const handleArchiveTask = (task) => {
   margin-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .task-section-header {
   margin-top: 20px;
-  margin-bottom: 10px;
-  padding-bottom: 5px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 2px solid #eee;
 }
 
@@ -409,8 +493,9 @@ const handleArchiveTask = (task) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .navbar-brand h1 {
@@ -442,5 +527,25 @@ const handleArchiveTask = (task) => {
 
 .logout-button:hover {
   background-color: #d32f2f;
+}
+
+/* Responsive styles for mobile */
+@media (max-width: 768px) {
+  .date-navigator {
+    overflow-x: auto;
+  }
+
+  :deep(.n-tabs-nav-item) {
+    padding: 10px 16px;
+    font-size: 0.95rem;
+  }
+
+  .task-section {
+    padding: 15px;
+  }
+
+  .header-section h2 {
+    font-size: 1.5rem;
+  }
 }
 </style>
