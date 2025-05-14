@@ -7,14 +7,13 @@ import { NConfigProvider, NMessageProvider } from 'naive-ui'
   <n-config-provider>
     <n-message-provider>
       <div class="app">
+        <header class="app-header">
+          <p class="copyright">&copy; 2025 Smart Todo App</p>
+        </header>
         <main>
           <!-- Router view will render the component matching the current route -->
           <router-view />
         </main>
-
-        <footer>
-          <p>&copy; 2025 Smart Todo App</p>
-        </footer>
       </div>
     </n-message-provider>
   </n-config-provider>
@@ -56,11 +55,17 @@ main {
   padding: 0;
 }
 
-footer {
+.app-header {
   background-color: #333;
   color: white;
   text-align: center;
-  padding: 1rem;
-  margin-top: auto;
+  padding: 0.5rem;
+  border-bottom: 1px solid #444;
+}
+
+.copyright {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
 }
 </style>

@@ -148,16 +148,6 @@
           />
         </n-form-item>
 
-        <n-form-item path="taskDueDate" label="Due Date">
-          <n-date-picker 
-            v-model:value="taskDueDate" 
-            type="datetime" 
-            clearable 
-            placeholder="Select due date and time"
-            :disabled="taskRecurrence !== null"
-          />
-        </n-form-item>
-
         <n-form-item path="taskRecurrence" label="Recurrence">
           <n-select 
             v-model:value="taskRecurrence" 
@@ -169,6 +159,15 @@
             ]" 
             clearable 
             @update:value="handleRecurrenceChange"
+          />
+        </n-form-item>
+
+        <n-form-item v-if="taskRecurrence === null" path="taskDueDate" label="Due Date">
+          <n-date-picker 
+            v-model:value="taskDueDate" 
+            type="datetime" 
+            clearable 
+            placeholder="Select due date and time"
           />
         </n-form-item>
 
@@ -337,13 +336,23 @@ const logout = async () => {
   }
 };
 
-const addNewTask = () => {
-  // Reset form fields
+// Function to reset form fields
+const resetForm = () => {
   taskTitle.value = '';
   taskDescription.value = '';
   taskDueDate.value = new Date();
   taskRecurrence.value = null;
   taskDayOfWeek.value = null;
+
+  // Reset form validation
+  if (formRef.value) {
+    formRef.value.restoreValidation();
+  }
+};
+
+const addNewTask = () => {
+  // Reset form fields
+  resetForm();
 
   // Show the modal
   showModal.value = true;
@@ -404,15 +413,28 @@ const handleModalSubmit = async (e) => {
       const tasksRef = collection(firestore, 'tasks');
       await addDoc(tasksRef, task);
 
-      // Close modal and show success message
+      // Reset form, close modal, and show success message
+      resetForm();
       showModal.value = false;
-      message.success('Task added successfully');
+
+      // Show a more detailed success message
+      message.success({
+        content: `Task "${task.title}" added successfully`,
+        duration: 4000,
+        keepAliveOnHover: true
+      });
 
       // Refresh tasks list
       fetchTasks(activeView.value);
     } catch (error) {
       console.error('Error adding task:', error);
-      message.error('Failed to add task: ' + error.message);
+
+      // Show a more detailed error message
+      message.error({
+        content: 'Failed to add task: ' + error.message,
+        duration: 6000,
+        keepAliveOnHover: true
+      });
     } finally {
       submitting.value = false;
     }
