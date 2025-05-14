@@ -2,14 +2,12 @@
 import { ref } from 'vue';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
+import { USER_STORAGE_KEY } from '../constants/storage';
 
 // Create a reactive reference to hold the current user
 const currentUser = ref(null);
 // Flag to track if auth state has been initialized
 const isAuthReady = ref(false);
-
-// LocalStorage key for storing user data
-const USER_STORAGE_KEY = 'smartTodoUser';
 
 // Function to save user data to localStorage
 function saveUserToLocalStorage(user) {

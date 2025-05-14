@@ -2,13 +2,41 @@ import { ref, onMounted, watch } from 'vue';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { currentUser } from '../store/auth';
+import { ACTIVE_VIEW_STORAGE_KEY, SELECTED_DATE_STORAGE_KEY } from '../constants/storage';
+import { VIEW_TODAY, VIEW_UPCOMING, VIEW_PREVIOUS, VIEW_DATE } from '../constants/ui';
+import { RECURRENCE_DAILY } from '../constants/task';
+
+// Function to save active view to localStorage
+const saveActiveViewToStorage = (view) => {
+  localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, view);
+};
+
+// Function to save selected date to localStorage
+const saveSelectedDateToStorage = (date) => {
+  if (date) {
+    localStorage.setItem(SELECTED_DATE_STORAGE_KEY, date.toString());
+  } else {
+    localStorage.removeItem(SELECTED_DATE_STORAGE_KEY);
+  }
+};
+
+// Function to get active view from localStorage
+const getActiveViewFromStorage = () => {
+  return localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY) || VIEW_TODAY;
+};
+
+// Function to get selected date from localStorage
+const getSelectedDateFromStorage = () => {
+  const storedDate = localStorage.getItem(SELECTED_DATE_STORAGE_KEY);
+  return storedDate ? new Date(storedDate) : null;
+};
 
 export function useTasks() {
   const tasks = ref([]);
   const loading = ref(false);
   const error = ref(null);
-  const activeView = ref('today'); // Track the active view: 'today', 'upcoming', or 'previous'
-  const selectedDate = ref(null); // Track the selected date for date filter
+  const activeView = ref(getActiveViewFromStorage()); // Initialize from localStorage or default to VIEW_TODAY
+  const selectedDate = ref(getSelectedDateFromStorage()); // Initialize from localStorage or default to null
 
   // Function to get today's date at midnight (start of day)
   const getTodayDate = () => {
@@ -23,8 +51,10 @@ export function useTasks() {
 
     loading.value = true;
     error.value = null;
-    activeView.value = 'today';
-
+    activeView.value = VIEW_TODAY;
+    saveActiveViewToStorage(VIEW_TODAY);
+    
+    // Clear selected date when fetching today's tasks
     try {
       const todayStart = getTodayDate();
       const todayEnd = new Date(todayStart);
@@ -55,7 +85,7 @@ export function useTasks() {
       const recurringQuery = query(
         tasksRef,
         where('userId', '==', currentUser.value.uid),
-        where('recurrence', '==', 'daily')
+        where('recurrence', '==', RECURRENCE_DAILY)
       );
 
       const recurringSnapshot = await getDocs(recurringQuery);
@@ -89,7 +119,8 @@ export function useTasks() {
 
     loading.value = true;
     error.value = null;
-    activeView.value = 'upcoming';
+    activeView.value = VIEW_UPCOMING;
+    saveActiveViewToStorage(VIEW_UPCOMING);
 
     try {
       const tomorrow = getTodayDate();
@@ -119,7 +150,7 @@ export function useTasks() {
       const recurringQuery = query(
         tasksRef,
         where('userId', '==', currentUser.value.uid),
-        where('recurrence', '==', 'daily')
+        where('recurrence', '==', RECURRENCE_DAILY)
       );
 
       const recurringSnapshot = await getDocs(recurringQuery);
@@ -153,7 +184,8 @@ export function useTasks() {
 
     loading.value = true;
     error.value = null;
-    activeView.value = 'previous';
+    activeView.value = VIEW_PREVIOUS;
+    saveActiveViewToStorage(VIEW_PREVIOUS);
 
     try {
       const today = getTodayDate();
@@ -182,7 +214,7 @@ export function useTasks() {
       const recurringQuery = query(
         tasksRef,
         where('userId', '==', currentUser.value.uid),
-        where('recurrence', '==', 'daily')
+        where('recurrence', '==', RECURRENCE_DAILY)
       );
 
       const recurringSnapshot = await getDocs(recurringQuery);
@@ -216,8 +248,10 @@ export function useTasks() {
 
     loading.value = true;
     error.value = null;
-    activeView.value = 'date';
+    activeView.value = VIEW_DATE;
     selectedDate.value = date;
+    saveActiveViewToStorage(VIEW_DATE);
+    saveSelectedDateToStorage(date);
 
     try {
       const dateStart = new Date(date);
@@ -250,7 +284,7 @@ export function useTasks() {
       const recurringQuery = query(
         tasksRef,
         where('userId', '==', currentUser.value.uid),
-        where('recurrence', '==', 'daily')
+        where('recurrence', '==', RECURRENCE_DAILY)
       );
 
       const recurringSnapshot = await getDocs(recurringQuery);
@@ -279,23 +313,27 @@ export function useTasks() {
   };
 
   // Function to fetch tasks based on the active view
-  const fetchTasks = async (view = 'today') => {
+  const fetchTasks = async (view = VIEW_TODAY) => {
     // If a date is selected, clear it when switching views
-    if (view !== 'date') {
+    if (view !== VIEW_DATE) {
       selectedDate.value = null;
+      saveSelectedDateToStorage(null);
     }
 
+    // Save the active view to localStorage
+    saveActiveViewToStorage(view);
+
     switch (view) {
-      case 'today':
+      case VIEW_TODAY:
         await fetchTodayTasks();
         break;
-      case 'upcoming':
+      case VIEW_UPCOMING:
         await fetchUpcomingTasks();
         break;
-      case 'previous':
+      case VIEW_PREVIOUS:
         await fetchPreviousTasks();
         break;
-      case 'date':
+      case VIEW_DATE:
         if (selectedDate.value) {
           await fetchTasksByDate(selectedDate.value);
         } else {
@@ -308,7 +346,15 @@ export function useTasks() {
   };
 
   // Fetch tasks when component mounts
-  onMounted(() => fetchTasks(activeView.value));
+  onMounted(() => {
+    // If we have a selected date from localStorage and the active view is 'date',
+    // fetch tasks for that date, otherwise fetch tasks for the active view
+    if (selectedDate.value && activeView.value === VIEW_DATE) {
+      fetchTasksByDate(selectedDate.value);
+    } else {
+      fetchTasks(activeView.value);
+    }
+  });
 
   // Re-fetch tasks when user changes
   watch(() => currentUser.value, (newUser) => {

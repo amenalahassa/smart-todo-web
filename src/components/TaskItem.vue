@@ -4,7 +4,7 @@
       <h3 class="task-title">{{ task.title }}</h3>
       <p v-if="task.description" class="task-description">{{ task.description }}</p>
       <div class="task-meta">
-        <span v-if="task.recurrence === 'daily'" class="task-recurrence">
+        <span v-if="task.recurrence === RECURRENCE_DAILY" class="task-recurrence">
           <n-icon class="recurrence-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6c0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6c0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4l-4-4v3z"/></svg></n-icon>
           Daily
         </span>
@@ -30,6 +30,7 @@
 
 <script setup>
 import { NButton, NIcon } from 'naive-ui';
+import { RECURRENCE_DAILY, TIME_FORMAT_OPTIONS } from '../constants/task';
 
 // Define props
 const props = defineProps({
@@ -45,13 +46,13 @@ defineEmits(['edit', 'delete', 'archive']);
 // Format due date
 const formatDueDate = (dueDate) => {
   if (!dueDate) return '';
-  
+
   // Handle Firestore Timestamp objects
   const date = dueDate.seconds 
     ? new Date(dueDate.seconds * 1000) 
     : new Date(dueDate);
-    
-  return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+  return date.toLocaleTimeString([], TIME_FORMAT_OPTIONS);
 };
 </script>
 

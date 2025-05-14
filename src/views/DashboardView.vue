@@ -3,7 +3,7 @@
     <!-- Navbar with user session -->
     <div class="navbar">
       <div class="navbar-brand">
-        <h1>Smart Todo App</h1>
+        <h1>{{ APP_NAME }}</h1>
       </div>
       <div class="navbar-user">
         <span v-if="currentUser" class="user-email">{{ currentUser.email }}</span>
@@ -15,10 +15,10 @@
       <!-- Header with dynamic title based on active view -->
       <div class="header-section">
         <h2>
-          <span v-if="activeView === 'today'">Today's Tasks</span>
-          <span v-else-if="activeView === 'upcoming'">Upcoming Tasks</span>
-          <span v-else-if="activeView === 'previous'">Previous Tasks</span>
-          <span v-else-if="activeView === 'date'">Tasks for Selected Date</span>
+          <span v-if="activeView === VIEW_TODAY">Today's Tasks</span>
+          <span v-else-if="activeView === VIEW_UPCOMING">Upcoming Tasks</span>
+          <span v-else-if="activeView === VIEW_PREVIOUS">Previous Tasks</span>
+          <span v-else-if="activeView === VIEW_DATE">Tasks for Selected Date</span>
         </h2>
         <div class="date-display">{{ formattedDate }}</div>
       </div>
@@ -34,9 +34,9 @@
             animated
             class="view-tabs"
           >
-            <n-tab-pane name="today" tab="Today" />
-            <n-tab-pane name="upcoming" tab="Upcoming" />
-            <n-tab-pane name="previous" tab="Previous" />
+            <n-tab-pane :name="VIEW_TODAY" tab="Today" />
+            <n-tab-pane :name="VIEW_UPCOMING" tab="Upcoming" />
+            <n-tab-pane :name="VIEW_PREVIOUS" tab="Previous" />
           </n-tabs>
 
           <!-- Date Picker for filtering tasks by specific date -->
@@ -78,16 +78,10 @@
               </svg>
             </div>
             <h3 class="empty-state-title">
-              <span v-if="activeView === 'today'">You're all caught up!</span>
-              <span v-else-if="activeView === 'upcoming'">No upcoming tasks</span>
-              <span v-else-if="activeView === 'previous'">No previous tasks</span>
-              <span v-else-if="activeView === 'date'">No tasks for this date</span>
+              {{ EMPTY_STATE_MESSAGES[activeView].title }}
             </h3>
             <p class="empty-state-message">
-              <span v-if="activeView === 'today'">Add a task to get started with your day.</span>
-              <span v-else-if="activeView === 'upcoming'">Plan ahead by adding tasks for the future.</span>
-              <span v-else-if="activeView === 'previous'">Past tasks will appear here.</span>
-              <span v-else-if="activeView === 'date'">Try selecting a different date or add a new task.</span>
+              {{ EMPTY_STATE_MESSAGES[activeView].message }}
             </p>
             <button class="empty-state-button" @click="addNewTask">
               <span class="button-icon">+</span>
@@ -100,7 +94,7 @@
         <div v-else>
           <!-- Pending Tasks Section -->
           <div v-if="pendingTasks.length > 0" class="task-section-header">
-            <h3>Pending Tasks</h3>
+            <h3>{{ SECTION_HEADERS.PENDING }}</h3>
           </div>
           <div v-if="pendingTasks.length > 0" class="task-list">
             <TaskItem 
@@ -115,7 +109,7 @@
 
           <!-- Completed Tasks Section -->
           <div v-if="completedTasks.length > 0" class="task-section-header">
-            <h3>Completed Tasks</h3>
+            <h3>{{ SECTION_HEADERS.COMPLETED }}</h3>
           </div>
           <div v-if="completedTasks.length > 0" class="task-list completed-tasks">
             <TaskItem 
@@ -149,6 +143,18 @@ import { useMessage, NTabs, NTabPane, NSpin, NButton, NDatePicker } from 'naive-
 import { currentUser } from '../store/auth';
 import { useTasks } from '../composables/useTasks';
 import TaskItem from '../components/TaskItem.vue';
+import { 
+  VIEW_TODAY, 
+  VIEW_UPCOMING, 
+  VIEW_PREVIOUS, 
+  VIEW_DATE, 
+  DATE_FORMAT_OPTIONS, 
+  DATE_FORMAT_SHORT, 
+  DATE_FORMAT_SHORT_WITH_YEAR,
+  EMPTY_STATE_MESSAGES,
+  SECTION_HEADERS,
+  APP_NAME
+} from '../constants/ui';
 
 const router = useRouter();
 const message = useMessage();
@@ -200,27 +206,26 @@ const completedTasks = computed(() => {
 // Format date based on active view
 const formattedDate = computed(() => {
   const today = new Date();
-  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
 
-  if (activeView.value === 'today') {
-    return today.toLocaleDateString('en-US', options);
-  } else if (activeView.value === 'upcoming') {
+  if (activeView.value === VIEW_TODAY) {
+    return today.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
+  } else if (activeView.value === VIEW_UPCOMING) {
     // For upcoming, show the date range (e.g., "Next 7 days")
     const nextWeek = new Date(today);
     nextWeek.setDate(today.getDate() + 7);
-    return `${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${nextWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  } else if (activeView.value === 'previous') {
+    return `${today.toLocaleDateString('en-US', DATE_FORMAT_SHORT)} - ${nextWeek.toLocaleDateString('en-US', DATE_FORMAT_SHORT_WITH_YEAR)}`;
+  } else if (activeView.value === VIEW_PREVIOUS) {
     // For previous, show the date range (e.g., "Last 30 days")
     const lastMonth = new Date(today);
     lastMonth.setDate(today.getDate() - 30);
-    return `${lastMonth.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  } else if (activeView.value === 'date' && selectedDate.value) {
+    return `${lastMonth.toLocaleDateString('en-US', DATE_FORMAT_SHORT)} - ${today.toLocaleDateString('en-US', DATE_FORMAT_SHORT_WITH_YEAR)}`;
+  } else if (activeView.value === VIEW_DATE && selectedDate.value) {
     // For specific date, show the selected date
     const date = new Date(selectedDate.value);
-    return date.toLocaleDateString('en-US', options);
+    return date.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
   }
 
-  return today.toLocaleDateString('en-US', options);
+  return today.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
 });
 
 // Handle tab change
