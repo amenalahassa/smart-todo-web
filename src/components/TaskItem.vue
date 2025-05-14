@@ -8,6 +8,10 @@
           <n-icon class="recurrence-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6c0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6c0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4l-4-4v3z"/></svg></n-icon>
           Daily
         </span>
+        <span v-if="task.recurrence === RECURRENCE_WEEKLY" class="task-recurrence weekly">
+          <n-icon class="recurrence-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6c0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6c0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4l-4-4v3z"/></svg></n-icon>
+          Weekly ({{ getDayName(task.dayOfWeek) }})
+        </span>
         <span v-if="task.dueDate" class="task-due-date">
           <n-icon class="due-date-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10s10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8zm.5-13H11v6l5.2 3.2l.8-1.3l-4.5-2.7V7z"/></svg></n-icon>
           {{ formatDueDate(task.dueDate) }}
@@ -30,7 +34,7 @@
 
 <script setup>
 import { NButton, NIcon } from 'naive-ui';
-import { RECURRENCE_DAILY, TIME_FORMAT_OPTIONS } from '../constants/task';
+import { RECURRENCE_DAILY, RECURRENCE_WEEKLY, DAYS_OF_WEEK, TIME_FORMAT_OPTIONS } from '../constants/task';
 
 // Define props
 const props = defineProps({
@@ -53,6 +57,12 @@ const formatDueDate = (dueDate) => {
     : new Date(dueDate);
 
   return date.toLocaleTimeString([], TIME_FORMAT_OPTIONS);
+};
+
+// Get day name from day value
+const getDayName = (dayValue) => {
+  const day = DAYS_OF_WEEK.find(d => d.value === dayValue);
+  return day ? day.label : '';
 };
 </script>
 
@@ -127,6 +137,10 @@ const formatDueDate = (dueDate) => {
   border-radius: 12px;
   font-size: 0.8rem;
   gap: 4px;
+}
+
+.task-recurrence.weekly {
+  background-color: #2196F3; /* Blue color for weekly tasks */
 }
 
 .recurrence-icon, .due-date-icon {

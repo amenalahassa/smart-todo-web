@@ -131,18 +131,77 @@
         <span class="plus-icon">+</span>
       </button>
     </div>
+
+    <!-- Task Creation Modal -->
+    <n-modal v-model:show="showModal" preset="card" title="Add New Task" :mask-closable="false" class="task-modal">
+      <n-form ref="formRef" :model="{ taskTitle, taskDescription, taskDueDate, taskRecurrence }" :rules="rules">
+        <n-form-item path="taskTitle" label="Title">
+          <n-input v-model:value="taskTitle" placeholder="Enter task title" />
+        </n-form-item>
+
+        <n-form-item path="taskDescription" label="Description">
+          <n-input 
+            v-model:value="taskDescription" 
+            type="textarea" 
+            placeholder="Enter task description (optional)" 
+            :autosize="{ minRows: 3, maxRows: 5 }" 
+          />
+        </n-form-item>
+
+        <n-form-item path="taskDueDate" label="Due Date">
+          <n-date-picker 
+            v-model:value="taskDueDate" 
+            type="datetime" 
+            clearable 
+            placeholder="Select due date and time"
+            :disabled="taskRecurrence !== null"
+          />
+        </n-form-item>
+
+        <n-form-item path="taskRecurrence" label="Recurrence">
+          <n-select 
+            v-model:value="taskRecurrence" 
+            placeholder="Select recurrence pattern (optional)" 
+            :options="[
+              { label: 'Daily', value: RECURRENCE_DAILY },
+              { label: 'Weekly', value: RECURRENCE_WEEKLY },
+              { label: 'None', value: null }
+            ]" 
+            clearable 
+            @update:value="handleRecurrenceChange"
+          />
+        </n-form-item>
+
+        <n-form-item v-if="taskRecurrence === RECURRENCE_WEEKLY" path="taskDayOfWeek" label="Day of Week">
+          <n-select 
+            v-model:value="taskDayOfWeek" 
+            placeholder="Select day of week" 
+            :options="DAYS_OF_WEEK" 
+            required
+          />
+        </n-form-item>
+
+        <div class="form-actions">
+          <n-button @click="handleModalCancel">Cancel</n-button>
+          <n-button type="primary" @click="handleModalSubmit" :loading="submitting">
+            Add Task
+          </n-button>
+        </div>
+      </n-form>
+    </n-modal>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
-import { useMessage, NTabs, NTabPane, NSpin, NButton, NDatePicker } from 'naive-ui';
+import { auth, firestore } from '../firebase';
+import { useMessage, NTabs, NTabPane, NSpin, NButton, NDatePicker, NModal, NForm, NFormItem, NInput, NSelect } from 'naive-ui';
 import { currentUser } from '../store/auth';
 import { useTasks } from '../composables/useTasks';
 import TaskItem from '../components/TaskItem.vue';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { 
   VIEW_TODAY, 
   VIEW_UPCOMING, 
@@ -155,6 +214,7 @@ import {
   SECTION_HEADERS,
   APP_NAME
 } from '../constants/ui';
+import { RECURRENCE_DAILY, RECURRENCE_WEEKLY, DAYS_OF_WEEK } from '../constants/task';
 
 const router = useRouter();
 const message = useMessage();
@@ -167,6 +227,25 @@ const {
   fetchTasks,
   fetchTasksByDate,
 } = useTasks();
+
+// Task creation dialog
+const showModal = ref(false);
+const formRef = ref(null);
+const taskTitle = ref('');
+const taskDescription = ref('');
+const taskDueDate = ref(null);
+const taskRecurrence = ref(null);
+const taskDayOfWeek = ref(null);
+const submitting = ref(false);
+
+// Form rules for validation
+const rules = {
+  taskTitle: {
+    required: true,
+    message: 'Please enter a task title',
+    trigger: 'blur'
+  }
+};
 
 // Computed property to filter and sort pending tasks
 const pendingTasks = computed(() => {
@@ -259,8 +338,85 @@ const logout = async () => {
 };
 
 const addNewTask = () => {
-  message.info('Add task functionality will be implemented in future iterations');
-  // This will be implemented in future iterations
+  // Reset form fields
+  taskTitle.value = '';
+  taskDescription.value = '';
+  taskDueDate.value = new Date();
+  taskRecurrence.value = null;
+  taskDayOfWeek.value = null;
+
+  // Show the modal
+  showModal.value = true;
+};
+
+const handleRecurrenceChange = (value) => {
+  // If recurrence is selected, clear the due date
+  if (value !== null) {
+    taskDueDate.value = null;
+  }
+
+  // If recurrence is not weekly, clear the day of week
+  if (value !== RECURRENCE_WEEKLY) {
+    taskDayOfWeek.value = null;
+  }
+};
+
+const handleModalCancel = () => {
+  showModal.value = false;
+};
+
+const handleModalSubmit = async (e) => {
+  e.preventDefault();
+
+  // Validate form
+  formRef.value?.validate(async (errors) => {
+    if (errors) {
+      return;
+    }
+
+    submitting.value = true;
+
+    try {
+      // Validate weekly recurrence requires day of week
+      if (taskRecurrence.value === RECURRENCE_WEEKLY && !taskDayOfWeek.value) {
+        message.error('Please select a day of week for weekly recurring tasks');
+        submitting.value = false;
+        return;
+      }
+
+      // Create task object
+      const task = {
+        title: taskTitle.value,
+        description: taskDescription.value || '',
+        dueDate: taskDueDate.value ? Timestamp.fromDate(new Date(taskDueDate.value)) : null,
+        recurrence: taskRecurrence.value,
+        completed: false,
+        userId: currentUser.value.uid,
+        createdAt: Timestamp.now()
+      };
+
+      // Add day of week for weekly recurring tasks
+      if (taskRecurrence.value === RECURRENCE_WEEKLY) {
+        task.dayOfWeek = taskDayOfWeek.value;
+      }
+
+      // Add task to Firestore
+      const tasksRef = collection(firestore, 'tasks');
+      await addDoc(tasksRef, task);
+
+      // Close modal and show success message
+      showModal.value = false;
+      message.success('Task added successfully');
+
+      // Refresh tasks list
+      fetchTasks(activeView.value);
+    } catch (error) {
+      console.error('Error adding task:', error);
+      message.error('Failed to add task: ' + error.message);
+    } finally {
+      submitting.value = false;
+    }
+  });
 };
 
 // Task action handlers
@@ -581,6 +737,28 @@ const handleArchiveTask = (task) => {
   background-color: #d32f2f;
 }
 
+/* Task Modal styles */
+.task-modal {
+  max-width: 600px;
+  width: 90%;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Make sure form inputs have proper spacing */
+:deep(.n-form-item) {
+  margin-bottom: 16px;
+}
+
+:deep(.n-form-item-label) {
+  font-weight: 500;
+}
+
 /* Responsive styles for mobile */
 @media (max-width: 768px) {
   .date-navigator {
@@ -609,6 +787,11 @@ const handleArchiveTask = (task) => {
 
   .header-section h2 {
     font-size: 1.5rem;
+  }
+
+  .task-modal {
+    width: 95%;
+    margin: 0 auto;
   }
 }
 </style>
