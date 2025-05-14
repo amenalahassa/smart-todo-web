@@ -115,6 +115,29 @@ export function useTasks() {
         });
       });
 
+      // Query for daily recurring tasks
+      const recurringQuery = query(
+        tasksRef,
+        where('userId', '==', currentUser.value.uid),
+        where('recurrence', '==', 'daily')
+      );
+
+      const recurringSnapshot = await getDocs(recurringQuery);
+
+      // Add recurring tasks, avoiding duplicates
+      recurringSnapshot.forEach((doc) => {
+        const taskData = {
+          id: doc.id,
+          ...doc.data()
+        };
+
+        // Check if this task is already in the list (from the first query)
+        const exists = upcomingTasks.some(task => task.id === taskData.id);
+        if (!exists) {
+          upcomingTasks.push(taskData);
+        }
+      });
+
       tasks.value = upcomingTasks;
     } catch (err) {
       console.error('Error fetching upcoming tasks:', err);
@@ -155,6 +178,29 @@ export function useTasks() {
         });
       });
 
+      // Query for daily recurring tasks
+      const recurringQuery = query(
+        tasksRef,
+        where('userId', '==', currentUser.value.uid),
+        where('recurrence', '==', 'daily')
+      );
+
+      const recurringSnapshot = await getDocs(recurringQuery);
+
+      // Add recurring tasks, avoiding duplicates
+      recurringSnapshot.forEach((doc) => {
+        const taskData = {
+          id: doc.id,
+          ...doc.data()
+        };
+
+        // Check if this task is already in the list (from the first query)
+        const exists = previousTasks.some(task => task.id === taskData.id);
+        if (!exists) {
+          previousTasks.push(taskData);
+        }
+      });
+
       tasks.value = previousTasks;
     } catch (err) {
       console.error('Error fetching previous tasks:', err);
@@ -164,8 +210,81 @@ export function useTasks() {
     }
   };
 
+  // Function to fetch tasks for a specific date
+  const fetchTasksByDate = async (date) => {
+    if (!currentUser.value || !date) return;
+
+    loading.value = true;
+    error.value = null;
+    activeView.value = 'date';
+    selectedDate.value = date;
+
+    try {
+      const dateStart = new Date(date);
+      dateStart.setHours(0, 0, 0, 0);
+      const dateEnd = new Date(dateStart);
+      dateEnd.setDate(dateEnd.getDate() + 1);
+
+      // Create a query for tasks due on the specific date
+      const tasksRef = collection(firestore, 'tasks');
+      const q = query(
+        tasksRef,
+        where('userId', '==', currentUser.value.uid),
+        where('dueDate', '>=', Timestamp.fromDate(dateStart)),
+        where('dueDate', '<', Timestamp.fromDate(dateEnd))
+      );
+
+      // Execute the query
+      const querySnapshot = await getDocs(q);
+      const dateTasks = [];
+
+      // Process query results
+      querySnapshot.forEach((doc) => {
+        dateTasks.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      // Query for daily recurring tasks
+      const recurringQuery = query(
+        tasksRef,
+        where('userId', '==', currentUser.value.uid),
+        where('recurrence', '==', 'daily')
+      );
+
+      const recurringSnapshot = await getDocs(recurringQuery);
+
+      // Add recurring tasks, avoiding duplicates
+      recurringSnapshot.forEach((doc) => {
+        const taskData = {
+          id: doc.id,
+          ...doc.data()
+        };
+
+        // Check if this task is already in the list (from the first query)
+        const exists = dateTasks.some(task => task.id === taskData.id);
+        if (!exists) {
+          dateTasks.push(taskData);
+        }
+      });
+
+      tasks.value = dateTasks;
+    } catch (err) {
+      console.error('Error fetching tasks for date:', err);
+      error.value = err.message;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // Function to fetch tasks based on the active view
   const fetchTasks = async (view = 'today') => {
+    // If a date is selected, clear it when switching views
+    if (view !== 'date') {
+      selectedDate.value = null;
+    }
+
     switch (view) {
       case 'today':
         await fetchTodayTasks();
@@ -175,6 +294,13 @@ export function useTasks() {
         break;
       case 'previous':
         await fetchPreviousTasks();
+        break;
+      case 'date':
+        if (selectedDate.value) {
+          await fetchTasksByDate(selectedDate.value);
+        } else {
+          await fetchTodayTasks();
+        }
         break;
       default:
         await fetchTodayTasks();
@@ -198,9 +324,11 @@ export function useTasks() {
     loading,
     error,
     activeView,
+    selectedDate,
     fetchTasks,
     fetchTodayTasks,
     fetchUpcomingTasks,
-    fetchPreviousTasks
+    fetchPreviousTasks,
+    fetchTasksByDate
   };
 }

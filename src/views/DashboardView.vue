@@ -18,24 +18,39 @@
           <span v-if="activeView === 'today'">Today's Tasks</span>
           <span v-else-if="activeView === 'upcoming'">Upcoming Tasks</span>
           <span v-else-if="activeView === 'previous'">Previous Tasks</span>
+          <span v-else-if="activeView === 'date'">Tasks for Selected Date</span>
         </h2>
         <div class="date-display">{{ formattedDate }}</div>
       </div>
 
       <!-- Date Navigator - Sub-tabs for switching between time periods -->
       <div class="date-navigator">
-        <n-tabs 
-          type="segment" 
-          :value="activeView" 
-          @update:value="handleViewChange" 
-          size="large"
-          animated
-          class="view-tabs"
-        >
-          <n-tab-pane name="today" tab="Today" />
-          <n-tab-pane name="upcoming" tab="Upcoming" />
-          <n-tab-pane name="previous" tab="Previous" />
-        </n-tabs>
+        <div class="date-navigator-controls">
+          <n-tabs 
+            type="segment" 
+            :value="activeView" 
+            @update:value="handleViewChange" 
+            size="large"
+            animated
+            class="view-tabs"
+          >
+            <n-tab-pane name="today" tab="Today" />
+            <n-tab-pane name="upcoming" tab="Upcoming" />
+            <n-tab-pane name="previous" tab="Previous" />
+          </n-tabs>
+
+          <!-- Date Picker for filtering tasks by specific date -->
+          <div class="date-picker-container">
+            <n-date-picker 
+              v-model:value="selectedDate" 
+              type="date" 
+              clearable
+              :actions="['clear', 'confirm']"
+              @update:value="handleDateChange"
+              placeholder="Filter by date"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- Task content area -->
@@ -66,11 +81,13 @@
               <span v-if="activeView === 'today'">You're all caught up!</span>
               <span v-else-if="activeView === 'upcoming'">No upcoming tasks</span>
               <span v-else-if="activeView === 'previous'">No previous tasks</span>
+              <span v-else-if="activeView === 'date'">No tasks for this date</span>
             </h3>
             <p class="empty-state-message">
               <span v-if="activeView === 'today'">Add a task to get started with your day.</span>
               <span v-else-if="activeView === 'upcoming'">Plan ahead by adding tasks for the future.</span>
               <span v-else-if="activeView === 'previous'">Past tasks will appear here.</span>
+              <span v-else-if="activeView === 'date'">Try selecting a different date or add a new task.</span>
             </p>
             <button class="empty-state-button" @click="addNewTask">
               <span class="button-icon">+</span>
@@ -128,7 +145,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { useMessage, NTabs, NTabPane, NSpin, NButton } from 'naive-ui';
+import { useMessage, NTabs, NTabPane, NSpin, NButton, NDatePicker } from 'naive-ui';
 import { currentUser } from '../store/auth';
 import { useTasks } from '../composables/useTasks';
 import TaskItem from '../components/TaskItem.vue';
@@ -140,7 +157,9 @@ const {
   loading, 
   error, 
   activeView, 
+  selectedDate,
   fetchTasks,
+  fetchTasksByDate,
 } = useTasks();
 
 // Computed property to filter and sort pending tasks
@@ -195,6 +214,10 @@ const formattedDate = computed(() => {
     const lastMonth = new Date(today);
     lastMonth.setDate(today.getDate() - 30);
     return `${lastMonth.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  } else if (activeView.value === 'date' && selectedDate.value) {
+    // For specific date, show the selected date
+    const date = new Date(selectedDate.value);
+    return date.toLocaleDateString('en-US', options);
   }
 
   return today.toLocaleDateString('en-US', options);
@@ -203,6 +226,16 @@ const formattedDate = computed(() => {
 // Handle tab change
 const handleViewChange = (view) => {
   fetchTasks(view);
+};
+
+// Handle date selection from date picker
+const handleDateChange = (date) => {
+  if (date) {
+    fetchTasksByDate(date);
+  } else {
+    // If date is cleared, go back to today's view
+    fetchTasks('today');
+  }
 };
 
 const logout = async () => {
@@ -277,8 +310,22 @@ const handleArchiveTask = (task) => {
   margin-bottom: 20px;
 }
 
+.date-navigator-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
 .view-tabs {
   margin-bottom: 5px;
+  flex-grow: 1;
+}
+
+.date-picker-container {
+  min-width: 200px;
+  max-width: 250px;
 }
 
 /* Make the tabs look more app-like */
@@ -533,6 +580,17 @@ const handleArchiveTask = (task) => {
 @media (max-width: 768px) {
   .date-navigator {
     overflow-x: auto;
+  }
+
+  .date-navigator-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-picker-container {
+    min-width: 100%;
+    max-width: 100%;
+    margin-top: 10px;
   }
 
   :deep(.n-tabs-nav-item) {
