@@ -289,7 +289,7 @@ const rules = {
 // Computed property to filter and sort pending tasks
 const pendingTasks = computed(() => {
   return tasks.value
-    .filter(task => !task.completed)
+    .filter(task => !task.completed && task.status !== 'archived')
     .sort((a, b) => {
       // Sort by due date (ascending)
       if (a.dueDate && b.dueDate) {
@@ -308,7 +308,7 @@ const pendingTasks = computed(() => {
 // Computed property to filter and sort completed tasks
 const completedTasks = computed(() => {
   return tasks.value
-    .filter(task => task.completed)
+    .filter(task => task.completed && task.status !== 'archived')
     .sort((a, b) => {
       // Sort by completion date (descending) if available
       if (a.completedAt && b.completedAt) {
