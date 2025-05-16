@@ -6,8 +6,23 @@
         <h1>{{ APP_NAME }}</h1>
       </div>
       <div class="navbar-user">
-        <span v-if="currentUser" class="user-email">{{ currentUser.email }}</span>
-        <button @click="logout" class="logout-button">Logout</button>
+        <n-dropdown 
+          v-if="currentUser" 
+          trigger="click" 
+          :options="userMenuOptions" 
+          @select="handleUserMenuSelect"
+        >
+          <div class="avatar-container">
+            <n-avatar 
+              round 
+              size="medium" 
+              :src="currentUser.photoURL" 
+              :fallback-src="getInitialsAvatar(currentUser.displayName || currentUser.email)"
+            >
+              {{ getInitials(currentUser.displayName || currentUser.email) }}
+            </n-avatar>
+          </div>
+        </n-dropdown>
       </div>
     </div>
 
@@ -132,8 +147,8 @@
       </button>
     </div>
 
-    <!-- Task Creation Modal -->
-    <n-modal v-model:show="showModal" preset="card" title="Add New Task" :mask-closable="false" class="task-modal">
+    <!-- Task Creation/Editing Modal -->
+    <n-modal v-model:show="showModal" preset="card" :title="modalTitle" :mask-closable="false" class="task-modal">
       <n-form ref="formRef" :model="{ taskTitle, taskDescription, taskDueDate, taskRecurrence }" :rules="rules">
         <n-form-item path="taskTitle" label="Title">
           <n-input v-model:value="taskTitle" placeholder="Enter task title" />
@@ -183,11 +198,28 @@
         <div class="form-actions">
           <n-button @click="handleModalCancel">Cancel</n-button>
           <n-button type="primary" @click="handleModalSubmit" :loading="submitting">
-            Add Task
+            {{ submitButtonText }}
           </n-button>
         </div>
       </n-form>
     </n-modal>
+
+    <!-- Task Deletion Confirmation Modal -->
+    <n-modal v-model:show="showDeleteModal" preset="dialog" title="Confirm Deletion" positive-text="Delete" negative-text="Cancel" @positive-click="confirmDeleteTask" @negative-click="cancelDeleteTask">
+      <template #default>
+        <p>Are you sure you want to delete the task "{{ taskToDelete?.title }}"?</p>
+        <p>This action cannot be undone.</p>
+      </template>
+    </n-modal>
+
+    <!-- Task Archive Dialog -->
+    <ArchiveDialog 
+      :show="showArchiveModal"
+      :task="taskToArchive"
+      @confirm="confirmArchiveTask"
+      @cancel="cancelArchiveTask"
+      @update:show="showArchiveModal = $event"
+    />
   </div>
 </template>
 
@@ -196,11 +228,12 @@ import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { signOut } from 'firebase/auth';
 import { auth, firestore } from '../firebase';
-import { useMessage, NTabs, NTabPane, NSpin, NButton, NDatePicker, NModal, NForm, NFormItem, NInput, NSelect } from 'naive-ui';
+import { useMessage, NTabs, NTabPane, NSpin, NButton, NDatePicker, NModal, NForm, NFormItem, NInput, NSelect, NAvatar, NDropdown, NSpace, NText, NDivider } from 'naive-ui';
 import { currentUser } from '../store/auth';
 import { useTasks } from '../composables/useTasks';
 import TaskItem from '../components/TaskItem.vue';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import ArchiveDialog from '../components/ArchiveDialog.vue';
+import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { 
   VIEW_TODAY, 
   VIEW_UPCOMING, 
@@ -227,7 +260,7 @@ const {
   fetchTasksByDate,
 } = useTasks();
 
-// Task creation dialog
+// Task creation/editing dialog
 const showModal = ref(false);
 const formRef = ref(null);
 const taskTitle = ref('');
@@ -236,6 +269,13 @@ const taskDueDate = ref(null);
 const taskRecurrence = ref(null);
 const taskDayOfWeek = ref(null);
 const submitting = ref(false);
+const isEditing = ref(false);
+const editingTaskId = ref(null);
+const taskCompleted = ref(false);
+
+// Task deletion confirmation
+const showDeleteModal = ref(false);
+const taskToDelete = ref(null);
 
 // Form rules for validation
 const rules = {
@@ -279,6 +319,16 @@ const completedTasks = computed(() => {
       // If completion date is not available, sort by title
       return a.title.localeCompare(b.title);
     });
+});
+
+// Computed property for modal title
+const modalTitle = computed(() => {
+  return isEditing.value ? 'Edit Task' : 'Add New Task';
+});
+
+// Computed property for submit button text
+const submitButtonText = computed(() => {
+  return isEditing.value ? 'Update Task' : 'Add Task';
 });
 
 // Format date based on active view
@@ -343,6 +393,7 @@ const resetForm = () => {
   taskDueDate.value = new Date();
   taskRecurrence.value = null;
   taskDayOfWeek.value = null;
+  taskCompleted.value = false;
 
   // Reset form validation
   if (formRef.value) {
@@ -353,6 +404,10 @@ const resetForm = () => {
 const addNewTask = () => {
   // Reset form fields
   resetForm();
+
+  // Reset editing state
+  isEditing.value = false;
+  editingTaskId.value = null;
 
   // Show the modal
   showModal.value = true;
@@ -372,6 +427,10 @@ const handleRecurrenceChange = (value) => {
 
 const handleModalCancel = () => {
   showModal.value = false;
+
+  // Reset editing state
+  isEditing.value = false;
+  editingTaskId.value = null;
 };
 
 const handleModalSubmit = async (e) => {
@@ -399,9 +458,7 @@ const handleModalSubmit = async (e) => {
         description: taskDescription.value || '',
         dueDate: taskDueDate.value ? Timestamp.fromDate(new Date(taskDueDate.value)) : null,
         recurrence: taskRecurrence.value,
-        completed: false,
         userId: currentUser.value.uid,
-        createdAt: Timestamp.now()
       };
 
       // Add day of week for weekly recurring tasks
@@ -409,9 +466,31 @@ const handleModalSubmit = async (e) => {
         task.dayOfWeek = taskDayOfWeek.value;
       }
 
-      // Add task to Firestore
-      const tasksRef = collection(firestore, 'tasks');
-      await addDoc(tasksRef, task);
+      let successMessage = '';
+
+      if (isEditing.value) {
+        // Update existing task in Firestore
+        const taskRef = doc(firestore, 'tasks', editingTaskId.value);
+
+        // Add updatedAt timestamp and preserve completed status
+        task.updatedAt = Timestamp.now();
+        task.completed = taskCompleted.value;
+
+        // Update the task
+        await updateDoc(taskRef, task);
+
+        successMessage = `Task "${task.title}" updated successfully`;
+      } else {
+        // Add createdAt timestamp and set completed status to false for new tasks
+        task.createdAt = Timestamp.now();
+        task.completed = false;
+
+        // Add new task to Firestore
+        const tasksRef = collection(firestore, 'tasks');
+        await addDoc(tasksRef, task);
+
+        successMessage = `Task "${task.title}" added successfully`;
+      }
 
       // Reset form, close modal, and show success message
       resetForm();
@@ -419,7 +498,7 @@ const handleModalSubmit = async (e) => {
 
       // Show a more detailed success message
       message.success({
-        content: `Task "${task.title}" added successfully`,
+        content: successMessage,
         duration: 4000,
         keepAliveOnHover: true
       });
@@ -427,11 +506,11 @@ const handleModalSubmit = async (e) => {
       // Refresh tasks list
       fetchTasks(activeView.value);
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error(`Error ${isEditing.value ? 'updating' : 'adding'} task:`, error);
 
       // Show a more detailed error message
       message.error({
-        content: 'Failed to add task: ' + error.message,
+        content: `Failed to ${isEditing.value ? 'update' : 'add'} task: ${error.message}`,
         duration: 6000,
         keepAliveOnHover: true
       });
@@ -443,18 +522,195 @@ const handleModalSubmit = async (e) => {
 
 // Task action handlers
 const handleEditTask = (task) => {
-  message.info(`Edit task: ${task.title}`);
-  // This will be implemented in future iterations
+  // Set editing mode
+  isEditing.value = true;
+  editingTaskId.value = task.id;
+
+  // Store the completed status
+  taskCompleted.value = task.completed || false;
+
+  // Pre-fill form with task data
+  taskTitle.value = task.title;
+  taskDescription.value = task.description || '';
+  taskRecurrence.value = task.recurrence;
+
+  // Handle due date (convert Firestore Timestamp to Date if needed)
+  if (task.dueDate) {
+    taskDueDate.value = task.dueDate.seconds 
+      ? new Date(task.dueDate.seconds * 1000) 
+      : new Date(task.dueDate);
+  } else {
+    taskDueDate.value = null;
+  }
+
+  // Handle day of week for weekly recurring tasks
+  if (task.recurrence === RECURRENCE_WEEKLY) {
+    taskDayOfWeek.value = task.dayOfWeek;
+  } else {
+    taskDayOfWeek.value = null;
+  }
+
+  // Open the modal
+  showModal.value = true;
 };
 
 const handleDeleteTask = (task) => {
-  message.warning(`Delete task: ${task.title}`);
-  // This will be implemented in future iterations
+  // Store the task to delete and show the confirmation modal
+  taskToDelete.value = task;
+  showDeleteModal.value = true;
 };
 
+const confirmDeleteTask = async () => {
+  if (!taskToDelete.value) return;
+
+  try {
+    // Delete the task from Firestore
+    const taskRef = doc(firestore, 'tasks', taskToDelete.value.id);
+    await deleteDoc(taskRef);
+
+    // Show success message
+    message.success({
+      content: `Task "${taskToDelete.value.title}" deleted successfully`,
+      duration: 4000,
+      keepAliveOnHover: true
+    });
+
+    // Refresh tasks list
+    fetchTasks(activeView.value);
+  } catch (error) {
+    console.error('Error deleting task:', error);
+
+    // Show error message
+    message.error({
+      content: 'Failed to delete task: ' + error.message,
+      duration: 6000,
+      keepAliveOnHover: true
+    });
+  } finally {
+    // Reset the task to delete and close the modal
+    taskToDelete.value = null;
+    showDeleteModal.value = false;
+  }
+};
+
+const cancelDeleteTask = () => {
+  // Reset the task to delete and close the modal
+  taskToDelete.value = null;
+  showDeleteModal.value = false;
+};
+
+// User menu options for the avatar dropdown
+const userMenuOptions = computed(() => {
+  return [
+    {
+      label: currentUser.value?.displayName || currentUser.value?.email,
+      key: 'user-info',
+      disabled: true
+    },
+    {
+      label: 'View Archived Tasks',
+      key: 'archived-tasks'
+    },
+    {
+      type: 'divider',
+      key: 'd1'
+    },
+    {
+      label: 'Logout',
+      key: 'logout'
+    }
+  ];
+});
+
+// Handle user menu selection
+const handleUserMenuSelect = (key) => {
+  if (key === 'logout') {
+    logout();
+  } else if (key === 'archived-tasks') {
+    router.push('/archived-tasks');
+  }
+};
+
+// Get user initials for avatar
+const getInitials = (name) => {
+  if (!name) return '';
+
+  // If it's an email, use the first letter
+  if (name.includes('@')) {
+    return name.charAt(0).toUpperCase();
+  }
+
+  // Otherwise, use the first letter of each word
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase())
+    .join('')
+    .substring(0, 2); // Limit to 2 characters
+};
+
+// Generate a colored avatar with initials
+const getInitialsAvatar = (name) => {
+  // This is a placeholder - in a real app, you might generate a colored avatar
+  // For now, we'll just return a blank string as we're using the initials directly
+  return '';
+};
+
+// Task archiving
+const showArchiveModal = ref(false);
+const taskToArchive = ref(null);
+
 const handleArchiveTask = (task) => {
-  message.success(`Archive task: ${task.title}`);
-  // This will be implemented in future iterations
+  // Only allow archiving of pending or recurrent tasks
+  if (task.completed) {
+    message.warning('Only pending or recurrent tasks can be archived.');
+    return;
+  }
+
+  // Store the task to archive and show the archive dialog
+  taskToArchive.value = task;
+  showArchiveModal.value = true;
+};
+
+const confirmArchiveTask = async ({ taskId, justification }) => {
+  try {
+    // Update the task in Firestore with archived status and justification
+    const taskRef = doc(firestore, 'tasks', taskId);
+    await updateDoc(taskRef, {
+      status: 'archived',
+      archivedAt: Timestamp.now(),
+      archiveJustification: justification,
+      updatedAt: Timestamp.now()
+    });
+
+    // Show success message
+    message.success({
+      content: `Task "${taskToArchive.value.title}" archived successfully`,
+      duration: 4000,
+      keepAliveOnHover: true
+    });
+
+    // Refresh tasks list
+    fetchTasks(activeView.value);
+
+    // Close the modal
+    showArchiveModal.value = false;
+    taskToArchive.value = null;
+  } catch (error) {
+    console.error('Error archiving task:', error);
+
+    // Show error message
+    message.error({
+      content: 'Failed to archive task: ' + error.message,
+      duration: 6000,
+      keepAliveOnHover: true
+    });
+  }
+};
+
+const cancelArchiveTask = () => {
+  // Close the modal
+  showArchiveModal.value = false;
+  taskToArchive.value = null;
 };
 </script>
 
@@ -739,24 +995,33 @@ const handleArchiveTask = (task) => {
   gap: 15px;
 }
 
-.user-email {
-  font-weight: 500;
-  background-color: rgba(255, 255, 255, 0.2);
-  padding: 5px 10px;
-  border-radius: 4px;
-}
-
-.logout-button {
-  background-color: #f44336;
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 4px;
+.avatar-container {
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
-.logout-button:hover {
-  background-color: #d32f2f;
+.avatar-container:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Style the dropdown */
+:deep(.n-dropdown-menu) {
+  min-width: 200px;
+}
+
+:deep(.n-dropdown-option-body--disabled) {
+  color: #333 !important;
+  font-weight: 500;
+  opacity: 1 !important;
+}
+
+:deep(.n-dropdown-divider) {
+  margin: 4px 0;
 }
 
 /* Task Modal styles */

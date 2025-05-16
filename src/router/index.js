@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import DashboardView from '../views/DashboardView.vue';
+import ArchivedTasksView from '../views/ArchivedTasksView.vue';
 import { currentUser, isAuthReady } from '../store/auth';
 
 // Route configuration
@@ -24,6 +25,12 @@ const routes = [
     path: '/dashboard',
     name: 'dashboard',
     component: DashboardView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/archived-tasks',
+    name: 'archived-tasks',
+    component: ArchivedTasksView,
     meta: { requiresAuth: true }
   },
   // Catch-all route for 404
