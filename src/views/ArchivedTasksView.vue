@@ -172,12 +172,12 @@ const handleUserMenuSelect = (key) => {
 // Get user initials for avatar
 const getInitials = (name) => {
   if (!name) return '';
-  
+
   // If it's an email, use the first letter
   if (name.includes('@')) {
     return name.charAt(0).toUpperCase();
   }
-  
+
   // Otherwise, use the first letter of each word
   return name
     .split(' ')
@@ -195,12 +195,12 @@ const getInitialsAvatar = (name) => {
 // Format date
 const formatDate = (timestamp) => {
   if (!timestamp) return '';
-  
+
   // Handle Firestore Timestamp objects
   const date = timestamp.seconds 
     ? new Date(timestamp.seconds * 1000) 
     : new Date(timestamp);
-  
+
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -219,10 +219,10 @@ const getDayName = (dayValue) => {
 // Fetch archived tasks
 const fetchArchivedTasks = async () => {
   if (!currentUser.value) return;
-  
+
   loading.value = true;
   error.value = null;
-  
+
   try {
     // Query for archived tasks
     const tasksRef = collection(firestore, 'tasks');
@@ -231,17 +231,17 @@ const fetchArchivedTasks = async () => {
       where('userId', '==', currentUser.value.uid),
       where('status', '==', 'archived')
     );
-    
+
     const querySnapshot = await getDocs(q);
     const tasks = [];
-    
+
     querySnapshot.forEach((doc) => {
       tasks.push({
         id: doc.id,
         ...doc.data()
       });
     });
-    
+
     // Sort by archived date (newest first)
     tasks.sort((a, b) => {
       if (a.archivedAt && b.archivedAt) {
@@ -251,7 +251,7 @@ const fetchArchivedTasks = async () => {
       }
       return 0;
     });
-    
+
     archivedTasks.value = tasks;
   } catch (err) {
     console.error('Error fetching archived tasks:', err);
@@ -272,22 +272,20 @@ const restoreTask = async (task) => {
       archiveJustification: null,
       updatedAt: Timestamp.now()
     });
-    
+
     // Show success message
-    message.success({
-      content: `Task "${task.title}" restored successfully`,
+    message.success(`Task "${task.title}" restored successfully`, {
       duration: 4000,
       keepAliveOnHover: true
     });
-    
+
     // Refresh the list
     fetchArchivedTasks();
   } catch (error) {
     console.error('Error restoring task:', error);
-    
+
     // Show error message
-    message.error({
-      content: 'Failed to restore task: ' + error.message,
+    message.error('Failed to restore task: ' + error.message, {
       duration: 6000,
       keepAliveOnHover: true
     });
@@ -602,15 +600,15 @@ fetchArchivedTasks();
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .task-section {
     padding: 15px;
   }
-  
+
   .archived-task-item {
     flex-direction: column;
   }
-  
+
   .task-actions {
     margin-top: 10px;
     align-self: flex-end;

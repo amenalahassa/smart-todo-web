@@ -34,6 +34,7 @@
           <span v-else-if="activeView === VIEW_UPCOMING">Upcoming Tasks</span>
           <span v-else-if="activeView === VIEW_PREVIOUS">Previous Tasks</span>
           <span v-else-if="activeView === VIEW_DATE">Tasks for Selected Date</span>
+          <span v-if="selectedDateRange && selectedDateRange[0] && selectedDateRange[1]" class="filtered-indicator"> (Filtered)</span>
         </h2>
         <div class="date-display">{{ formattedDate }}</div>
       </div>
@@ -54,15 +55,15 @@
             <n-tab-pane :name="VIEW_PREVIOUS" tab="Previous" />
           </n-tabs>
 
-          <!-- Date Picker for filtering tasks by specific date -->
+          <!-- Date Picker for filtering tasks by date range -->
           <div class="date-picker-container">
             <n-date-picker 
-              v-model:value="selectedDate" 
-              type="date" 
+              v-model:value="selectedDateRange" 
+              type="daterange" 
               clearable
               :actions="['clear', 'confirm']"
-              @update:value="handleDateChange"
-              placeholder="Filter by date"
+              @update:value="handleDateRangeChange"
+              placeholder="Filter by date range"
             />
           </div>
         </div>
@@ -238,8 +239,10 @@ const {
   error, 
   activeView, 
   selectedDate,
+  selectedDateRange,
   fetchTasks,
   fetchTasksByDate,
+  fetchTasksByDateRange,
 } = useTasks();
 
 // Task creation/editing dialog
@@ -307,6 +310,14 @@ const submitButtonText = computed(() => {
 const formattedDate = computed(() => {
   const today = new Date();
 
+  // If a date range is selected, show the date range
+  if (selectedDateRange.value && selectedDateRange.value[0] && selectedDateRange.value[1]) {
+    const startDate = new Date(selectedDateRange.value[0]);
+    const endDate = new Date(selectedDateRange.value[1]);
+    return `${startDate.toLocaleDateString('en-US', DATE_FORMAT_SHORT)} - ${endDate.toLocaleDateString('en-US', DATE_FORMAT_SHORT_WITH_YEAR)}`;
+  }
+
+  // Otherwise, show the default date format for the active view
   if (activeView.value === VIEW_TODAY) {
     return today.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
   } else if (activeView.value === VIEW_UPCOMING) {
@@ -333,13 +344,24 @@ const handleViewChange = (view) => {
   fetchTasks(view);
 };
 
-// Handle date selection from date picker
+// Handle date selection from date picker (legacy - keeping for reference)
 const handleDateChange = (date) => {
   if (date) {
     fetchTasksByDate(date);
   } else {
     // If date is cleared, go back to today's view
     fetchTasks('today');
+  }
+};
+
+// Handle date range selection from date picker
+const handleDateRangeChange = (dateRange) => {
+  if (dateRange && dateRange[0] && dateRange[1]) {
+    // Apply date range filter to the current view
+    fetchTasksByDateRange(dateRange, activeView.value);
+  } else {
+    // If date range is cleared, go back to the current view without filter
+    fetchTasks(activeView.value);
   }
 };
 
@@ -469,8 +491,7 @@ const handleModalSubmit = async (e) => {
       showModal.value = false;
 
       // Show a more detailed success message
-      message.success({
-        content: successMessage,
+      message.success(successMessage, {
         duration: 4000,
         keepAliveOnHover: true
       });
@@ -481,8 +502,7 @@ const handleModalSubmit = async (e) => {
       console.error(`Error ${isEditing.value ? 'updating' : 'adding'} task:`, error);
 
       // Show a more detailed error message
-      message.error({
-        content: `Failed to ${isEditing.value ? 'update' : 'add'} task: ${error.message}`,
+      message.error(`Failed to ${isEditing.value ? 'update' : 'add'} task: ${error.message}`, {
         duration: 6000,
         keepAliveOnHover: true
       });
@@ -615,8 +635,7 @@ const confirmArchiveTask = async ({ taskId, justification }) => {
     });
 
     // Show success message
-    message.success({
-      content: `Task "${taskToArchive.value.title}" archived successfully`,
+    message.success(`Task "${taskToArchive.value.title}" archived successfully`, {
       duration: 4000,
       keepAliveOnHover: true
     });
@@ -631,8 +650,7 @@ const confirmArchiveTask = async ({ taskId, justification }) => {
     console.error('Error archiving task:', error);
 
     // Show error message
-    message.error({
-      content: 'Failed to archive task: ' + error.message,
+    message.error('Failed to archive task: ' + error.message, {
       duration: 6000,
       keepAliveOnHover: true
     });
@@ -690,8 +708,7 @@ const confirmCompleteTask = async () => {
       await addDoc(tasksRef, completedTaskCopy);
 
       // Show success message
-      message.success({
-        content: `Recurring task "${task.title}" marked as completed for today`,
+      message.success(`Recurring task "${task.title}" marked as completed for today`, {
         duration: 4000,
         keepAliveOnHover: true
       });
@@ -705,8 +722,7 @@ const confirmCompleteTask = async () => {
       });
 
       // Show success message
-      message.success({
-        content: `Task "${task.title}" marked as completed`,
+      message.success(`Task "${task.title}" marked as completed`, {
         duration: 4000,
         keepAliveOnHover: true
       });
@@ -722,8 +738,7 @@ const confirmCompleteTask = async () => {
     console.error('Error completing task:', error);
 
     // Show error message
-    message.error({
-      content: 'Failed to complete task: ' + error.message,
+    message.error('Failed to complete task: ' + error.message, {
       duration: 6000,
       keepAliveOnHover: true
     });
@@ -759,7 +774,19 @@ const cancelCompleteTask = () => {
 .header-section h2 {
   font-size: 1.8rem;
   color: #333;
-  margin-bottom: 5px;
+  margin: 0 0 5px 0;
+  display: flex;
+  align-items: center;
+}
+
+.filtered-indicator {
+  font-size: 0.9rem;
+  color: #fff;
+  background-color: #4CAF50;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 10px;
+  font-weight: normal;
 }
 
 .date-display {
