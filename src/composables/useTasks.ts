@@ -239,29 +239,6 @@ export function useTasks() {
         });
       });
 
-      // Query for daily recurring tasks
-      const recurringQuery = query(
-        tasksRef,
-        where('userId', '==', currentUser.value.uid),
-        where('recurrence', '==', RECURRENCE_DAILY)
-      );
-
-      const recurringSnapshot = await getDocs(recurringQuery);
-
-      // Add recurring tasks, avoiding duplicates
-      recurringSnapshot.forEach((doc) => {
-        const taskData = {
-          id: doc.id,
-          ...doc.data()
-        };
-
-        // Check if this task is already in the list (from the first query)
-        const exists = previousTasks.some(task => task.id === taskData.id);
-        if (!exists) {
-          previousTasks.push(taskData);
-        }
-      });
-
       tasks.value = previousTasks;
     } catch (err) {
       console.error('Error fetching previous tasks:', err);

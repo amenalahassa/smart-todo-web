@@ -289,6 +289,48 @@ const displayedTasks = computed(() => {
         });
   }
 
+  // For today's view, filter out recurring tasks that have already been completed today
+  if (activeView.value === VIEW_TODAY) {
+    // Find all completed tasks for today that have an originalTaskId set
+    // These are copies of recurring tasks that have been completed today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Get IDs of recurring tasks that have already been completed today
+    const completedRecurringTaskIds = new Set();
+    tasks.value.forEach(task => {
+      if (task.completed && task.originalTaskId && task.completedAt) {
+        // Check if the task was completed today
+        const completedDate = task.completedAt.seconds 
+          ? new Date(task.completedAt.seconds * 1000) 
+          : new Date(task.completedAt);
+
+        if (completedDate >= today && completedDate < tomorrow) {
+          // This is a recurring task that was completed today
+          completedRecurringTaskIds.add(task.originalTaskId);
+        }
+      }
+    });
+
+    let currentWeekDay = new Date().getDay();
+    return tasks.value
+        .filter(task => 
+          // Not completed
+          !task.completed && 
+          // Not archived
+          task.status !== 'archived' && 
+          // Either not recurring, or recurring but not already completed today
+          (!task.recurrence || 
+            (task.recurrence === RECURRENCE_DAILY && !completedRecurringTaskIds.has(task.id)) || 
+            (task.dayOfWeek === currentWeekDay && task.recurrence === RECURRENCE_WEEKLY && !completedRecurringTaskIds.has(task.id))
+          )
+        )
+        .sort((a, b) => a.dueDate - b.dueDate);
+  }
+
+  // Default case (should not reach here, but just in case)
   let currentWeekDay = new Date().getDay();
   return tasks.value
       .filter(task => !task.completed && task.status !== 'archived' && (!task.recurrence || task.recurrence === RECURRENCE_DAILY || (task.dayOfWeek === currentWeekDay && task.recurrence === RECURRENCE_WEEKLY)))
@@ -384,7 +426,7 @@ const logout = async () => {
 const resetForm = () => {
   taskTitle.value = '';
   taskDescription.value = '';
-  taskDueDate.value = new Date();
+  taskDueDate.value = Date.now();
   taskRecurrence.value = null;
   taskDayOfWeek.value = null;
   taskCompleted.value = false;
@@ -526,11 +568,11 @@ const handleEditTask = (task) => {
   taskDescription.value = task.description || '';
   taskRecurrence.value = task.recurrence;
 
-  // Handle due date (convert Firestore Timestamp to Date if needed)
+  // Handle due date (convert Firestore Timestamp to timestamp number if needed)
   if (task.dueDate) {
     taskDueDate.value = task.dueDate.seconds 
-      ? new Date(task.dueDate.seconds * 1000) 
-      : new Date(task.dueDate);
+      ? task.dueDate.seconds * 1000 
+      : new Date(task.dueDate).getTime();
   } else {
     taskDueDate.value = null;
   }
