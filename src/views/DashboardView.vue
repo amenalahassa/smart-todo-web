@@ -113,7 +113,6 @@
               :key="task.id" 
               :task="task"
               @edit="handleEditTask"
-              @delete="handleDeleteTask"
               @archive="handleArchiveTask"
             />
           </div>
@@ -185,13 +184,6 @@
       </n-form>
     </n-modal>
 
-    <!-- Task Deletion Confirmation Modal -->
-    <n-modal v-model:show="showDeleteModal" preset="dialog" title="Confirm Deletion" positive-text="Delete" negative-text="Cancel" @positive-click="confirmDeleteTask" @negative-click="cancelDeleteTask">
-      <template #default>
-        <p>Are you sure you want to delete the task "{{ taskToDelete?.title }}"?</p>
-        <p>This action cannot be undone.</p>
-      </template>
-    </n-modal>
 
     <!-- Task Archive Dialog -->
     <ArchiveDialog 
@@ -214,7 +206,7 @@ import { currentUser } from '../store/auth';
 import { useTasks } from '../composables/useTasks';
 import TaskItem from '../components/TaskItem.vue';
 import ArchiveDialog from '../components/ArchiveDialog.vue';
-import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { 
   VIEW_TODAY, 
   VIEW_UPCOMING, 
@@ -254,9 +246,6 @@ const isEditing = ref(false);
 const editingTaskId = ref(null);
 const taskCompleted = ref(false);
 
-// Task deletion confirmation
-const showDeleteModal = ref(false);
-const taskToDelete = ref(null);
 
 // Form rules for validation
 const rules = {
@@ -527,50 +516,6 @@ const handleEditTask = (task) => {
   showModal.value = true;
 };
 
-const handleDeleteTask = (task) => {
-  // Store the task to delete and show the confirmation modal
-  taskToDelete.value = task;
-  showDeleteModal.value = true;
-};
-
-const confirmDeleteTask = async () => {
-  if (!taskToDelete.value) return;
-
-  try {
-    // Delete the task from Firestore
-    const taskRef = doc(firestore, 'tasks', taskToDelete.value.id);
-    await deleteDoc(taskRef);
-
-    // Show success message
-    message.success({
-      content: `Task "${taskToDelete.value.title}" deleted successfully`,
-      duration: 4000,
-      keepAliveOnHover: true
-    });
-
-    // Refresh tasks list
-    fetchTasks(activeView.value);
-  } catch (error) {
-    console.error('Error deleting task:', error);
-
-    // Show error message
-    message.error({
-      content: 'Failed to delete task: ' + error.message,
-      duration: 6000,
-      keepAliveOnHover: true
-    });
-  } finally {
-    // Reset the task to delete and close the modal
-    taskToDelete.value = null;
-    showDeleteModal.value = false;
-  }
-};
-
-const cancelDeleteTask = () => {
-  // Reset the task to delete and close the modal
-  taskToDelete.value = null;
-  showDeleteModal.value = false;
-};
 
 // User menu options for the avatar dropdown
 const userMenuOptions = computed(() => {
