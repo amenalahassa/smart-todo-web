@@ -20,3 +20,11 @@ export const TIME_FORMAT_OPTIONS = {
   hour: '2-digit', 
   minute: '2-digit'
 };
+
+// Date and time format options for upcoming and previous views
+export const DATE_TIME_FORMAT_OPTIONS = {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit', 
+  minute: '2-digit'
+};

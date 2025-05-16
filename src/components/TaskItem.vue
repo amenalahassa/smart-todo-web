@@ -47,8 +47,8 @@
 <script setup>
 import { NButton, NIcon } from 'naive-ui';
 import { computed } from 'vue';
-import { RECURRENCE_DAILY, RECURRENCE_WEEKLY, DAYS_OF_WEEK, TIME_FORMAT_OPTIONS } from '../constants/task';
-import { VIEW_TODAY, VIEW_UPCOMING } from '../constants/ui';
+import { RECURRENCE_DAILY, RECURRENCE_WEEKLY, DAYS_OF_WEEK, TIME_FORMAT_OPTIONS, DATE_TIME_FORMAT_OPTIONS } from '../constants/task';
+import { VIEW_TODAY, VIEW_UPCOMING, VIEW_PREVIOUS } from '../constants/ui';
 
 // Define props
 const props = defineProps({
@@ -78,6 +78,12 @@ const formatDueDate = (dueDate) => {
     ? new Date(dueDate.seconds * 1000) 
     : new Date(dueDate);
 
+  // Use date and time format for upcoming and previous views
+  if (props.activeView === VIEW_UPCOMING || props.activeView === VIEW_PREVIOUS) {
+    return date.toLocaleString([], DATE_TIME_FORMAT_OPTIONS);
+  }
+
+  // Use time-only format for today view
   return date.toLocaleTimeString([], TIME_FORMAT_OPTIONS);
 };
 
