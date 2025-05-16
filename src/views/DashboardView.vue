@@ -112,8 +112,10 @@
               v-for="task in displayedTasks"
               :key="task.id" 
               :task="task"
+              :active-view="activeView"
               @edit="handleEditTask"
               @archive="handleArchiveTask"
+              @complete="handleCompleteTask"
             />
           </div>
         </div>
@@ -193,6 +195,13 @@
       @cancel="cancelArchiveTask"
       @update:show="showArchiveModal = $event"
     />
+
+    <!-- Task Completion Confirmation Modal -->
+    <n-modal v-model:show="showCompleteModal" preset="dialog" title="Confirm Completion" positive-text="Complete" negative-text="Cancel" @positive-click="confirmCompleteTask" @negative-click="cancelCompleteTask">
+      <template #default>
+        <p>Are you sure you want to mark the task "{{ taskToComplete?.title }}" as completed?</p>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -277,8 +286,9 @@ const displayedTasks = computed(() => {
         });
   }
 
+  let currentWeekDay = new Date().getDay();
   return tasks.value
-      .filter(task => (task.status !== 'archived') || task.recurrence === RECURRENCE_DAILY)
+      .filter(task => !task.completed && task.status !== 'archived' && (!task.recurrence || task.recurrence === RECURRENCE_DAILY || (task.dayOfWeek === currentWeekDay && task.recurrence === RECURRENCE_WEEKLY)))
       .sort((a, b) => a.dueDate - b.dueDate);
 });
 
@@ -577,6 +587,10 @@ const getInitialsAvatar = (name) => {
 const showArchiveModal = ref(false);
 const taskToArchive = ref(null);
 
+// Task completion
+const showCompleteModal = ref(false);
+const taskToComplete = ref(null);
+
 const handleArchiveTask = (task) => {
   // Only allow archiving of pending or recurrent tasks
   if (task.completed) {
@@ -629,6 +643,97 @@ const cancelArchiveTask = () => {
   // Close the modal
   showArchiveModal.value = false;
   taskToArchive.value = null;
+};
+
+// Handle task completion
+const handleCompleteTask = (task) => {
+  // Store the task to complete and show the confirmation dialog
+  taskToComplete.value = task;
+  showCompleteModal.value = true;
+};
+
+const confirmCompleteTask = async () => {
+  try {
+    const task = taskToComplete.value;
+    const isRecurring = task.recurrence === RECURRENCE_DAILY || task.recurrence === RECURRENCE_WEEKLY;
+
+    if (isRecurring) {
+      // For recurring tasks, create a copy with today's date and mark it as completed
+      const today = new Date();
+
+      // Create a new task object based on the recurring task
+      const completedTaskCopy = {
+        title: task.title,
+        description: task.description || '',
+        userId: currentUser.value.uid,
+        completed: true,
+        completedAt: Timestamp.now(),
+        createdAt: task.createdAt,
+        updatedAt: Timestamp.now(),
+        // Set the due date to today
+        dueDate: Timestamp.fromDate(today),
+        // Set status to active (not archived)
+        status: 'active',
+        // Reference to the original recurring task
+        originalTaskId: task.id,
+        // Copy the recurrence type for reference, but this copy is not recurring itself
+        originalRecurrence: task.recurrence
+      };
+
+      // For weekly recurring tasks, also copy the day of week
+      if (task.recurrence === RECURRENCE_WEEKLY && task.dayOfWeek !== undefined) {
+        completedTaskCopy.dayOfWeek = task.dayOfWeek;
+      }
+
+      // Add the completed task copy to Firestore
+      const tasksRef = collection(firestore, 'tasks');
+      await addDoc(tasksRef, completedTaskCopy);
+
+      // Show success message
+      message.success({
+        content: `Recurring task "${task.title}" marked as completed for today`,
+        duration: 4000,
+        keepAliveOnHover: true
+      });
+    } else {
+      // For non-recurring tasks, update the original task
+      const taskRef = doc(firestore, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        completed: true,
+        completedAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+
+      // Show success message
+      message.success({
+        content: `Task "${task.title}" marked as completed`,
+        duration: 4000,
+        keepAliveOnHover: true
+      });
+    }
+
+    // Refresh tasks list
+    fetchTasks(activeView.value);
+
+    // Close the modal
+    showCompleteModal.value = false;
+    taskToComplete.value = null;
+  } catch (error) {
+    console.error('Error completing task:', error);
+
+    // Show error message
+    message.error({
+      content: 'Failed to complete task: ' + error.message,
+      duration: 6000,
+      keepAliveOnHover: true
+    });
+  }
+};
+
+const cancelCompleteTask = () => {
+  // Close the modal
+  showCompleteModal.value = false;
+  taskToComplete.value = null;
 };
 </script>
 

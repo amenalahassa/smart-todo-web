@@ -4,7 +4,7 @@ import { firestore } from '../firebase';
 import { currentUser } from '../store/auth';
 import { ACTIVE_VIEW_STORAGE_KEY, SELECTED_DATE_STORAGE_KEY } from '../constants/storage';
 import { VIEW_TODAY, VIEW_UPCOMING, VIEW_PREVIOUS, VIEW_DATE } from '../constants/ui';
-import { RECURRENCE_DAILY } from '../constants/task';
+import { RECURRENCE_DAILY, RECURRENCE_WEEKLY } from '../constants/task';
 
 // Function to save active view to localStorage
 const saveActiveViewToStorage = (view) => {
@@ -85,7 +85,7 @@ export function useTasks() {
       const recurringQuery = query(
         tasksRef,
         where('userId', '==', currentUser.value.uid),
-        where('recurrence', '==', RECURRENCE_DAILY)
+        where('recurrence', 'in', [RECURRENCE_DAILY, RECURRENCE_WEEKLY])
       );
 
       const recurringSnapshot = await getDocs(recurringQuery);
@@ -150,7 +150,7 @@ export function useTasks() {
       const recurringQuery = query(
         tasksRef,
         where('userId', '==', currentUser.value.uid),
-        where('recurrence', '==', RECURRENCE_DAILY)
+        where('recurrence', 'in', [RECURRENCE_DAILY, RECURRENCE_WEEKLY])
       );
 
       const recurringSnapshot = await getDocs(recurringQuery);
