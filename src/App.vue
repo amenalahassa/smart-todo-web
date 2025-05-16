@@ -7,9 +7,6 @@ import { NConfigProvider, NMessageProvider } from 'naive-ui'
   <n-config-provider>
     <n-message-provider>
       <div class="app">
-        <header class="app-header">
-          <p class="copyright">&copy; 2025 Smart Todo App</p>
-        </header>
         <main>
           <!-- Router view will render the component matching the current route -->
           <router-view />

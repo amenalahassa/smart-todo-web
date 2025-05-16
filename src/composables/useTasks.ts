@@ -188,7 +188,8 @@ export function useTasks() {
     saveActiveViewToStorage(VIEW_PREVIOUS);
 
     try {
-      const today = getTodayDate();
+      // const today = getTodayDate();
+      const today = new Date();
 
       // Create a query for tasks due before today
       const tasksRef = collection(firestore, 'tasks');

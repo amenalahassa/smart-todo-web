@@ -85,7 +85,7 @@
         </div>
 
         <!-- Empty state -->
-        <div v-else-if="pendingTasks.length === 0 && completedTasks.length === 0" class="empty-state">
+        <div v-else-if="displayedTasks.length === 0" class="empty-state">
           <div class="empty-state-content">
             <div class="empty-state-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64">
@@ -107,28 +107,9 @@
 
         <!-- Task list -->
         <div v-else>
-          <!-- Pending Tasks Section -->
-          <div v-if="pendingTasks.length > 0" class="task-section-header">
-            <h3>{{ SECTION_HEADERS.PENDING }}</h3>
-          </div>
-          <div v-if="pendingTasks.length > 0" class="task-list">
+          <div v-if="displayedTasks.length > 0" class="task-list" v-bind:class="{'completed-tasks': activeView === VIEW_PREVIOUS}">
             <TaskItem 
-              v-for="task in pendingTasks" 
-              :key="task.id" 
-              :task="task"
-              @edit="handleEditTask"
-              @delete="handleDeleteTask"
-              @archive="handleArchiveTask"
-            />
-          </div>
-
-          <!-- Completed Tasks Section -->
-          <div v-if="completedTasks.length > 0" class="task-section-header">
-            <h3>{{ SECTION_HEADERS.COMPLETED }}</h3>
-          </div>
-          <div v-if="completedTasks.length > 0" class="task-list completed-tasks">
-            <TaskItem 
-              v-for="task in completedTasks" 
+              v-for="task in displayedTasks"
               :key="task.id" 
               :task="task"
               @edit="handleEditTask"
@@ -287,39 +268,31 @@ const rules = {
 };
 
 // Computed property to filter and sort pending tasks
-const pendingTasks = computed(() => {
+const displayedTasks = computed(() => {
+
+  if (activeView.value === VIEW_UPCOMING || activeView.value === VIEW_PREVIOUS) {
+    return tasks.value
+        .filter(task => task.status !== 'archived')
+        .sort((a, b) => {
+          // Sort by due date (ascending)
+          if (a.dueDate && b.dueDate) {
+            const dateA = a.dueDate.seconds ? a.dueDate.seconds : a.dueDate;
+            const dateB = b.dueDate.seconds ? b.dueDate.seconds : b.dueDate;
+            return dateA - dateB;
+          }
+          // If only one task has a due date, it comes first
+          if (a.dueDate) return -1;
+          if (b.dueDate) return 1;
+          // If neither has a due date, sort by title
+          return a.title.localeCompare(b.title);
+        });
+  }
+
   return tasks.value
-    .filter(task => !task.completed && task.status !== 'archived')
-    .sort((a, b) => {
-      // Sort by due date (ascending)
-      if (a.dueDate && b.dueDate) {
-        const dateA = a.dueDate.seconds ? a.dueDate.seconds : a.dueDate;
-        const dateB = b.dueDate.seconds ? b.dueDate.seconds : b.dueDate;
-        return dateA - dateB;
-      }
-      // If only one task has a due date, it comes first
-      if (a.dueDate) return -1;
-      if (b.dueDate) return 1;
-      // If neither has a due date, sort by title
-      return a.title.localeCompare(b.title);
-    });
+      .filter(task => (task.status !== 'archived') || task.recurrence === RECURRENCE_DAILY)
+      .sort((a, b) => a.dueDate - b.dueDate);
 });
 
-// Computed property to filter and sort completed tasks
-const completedTasks = computed(() => {
-  return tasks.value
-    .filter(task => task.completed && task.status !== 'archived')
-    .sort((a, b) => {
-      // Sort by completion date (descending) if available
-      if (a.completedAt && b.completedAt) {
-        const dateA = a.completedAt.seconds ? a.completedAt.seconds : a.completedAt;
-        const dateB = b.completedAt.seconds ? b.completedAt.seconds : b.completedAt;
-        return dateB - dateA; // Most recently completed first
-      }
-      // If completion date is not available, sort by title
-      return a.title.localeCompare(b.title);
-    });
-});
 
 // Computed property for modal title
 const modalTitle = computed(() => {
